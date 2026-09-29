@@ -1,0 +1,394 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ──────────────────────────────────────────────
+// AUTH & RBAC
+// ──────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MANAGER
+  SITE_MANAGER
+  WORKER
+  VIEWER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(WORKER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ──────────────────────────────────────────────
+// SCHEDULE MODULE (from terminal3-scheduler)
+// ──────────────────────────────────────────────
+
+model Project {
+  id                 String      @id @default(cuid())
+  name               String
+  description        String?
+  paidPercent        Float       @default(0)
+  expensesPaidPercent Float      @default(0)
+  contract           Float?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  version            Int         @default(1)
+  createdBy          String?
+  updatedBy          String?
+
+  tasks       Task[]
+  milestones  Milestone[]
+  recipients  Recipient[]
+  baselines   Baseline[]
+  buyoutPackages BuyoutPackage[]
+  buyoutBundles  BuyoutBundle[]
+}
+
+model Task {
+  id               String    @id @default(cuid())
+  projectId        String
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name             String
+  phase            String
+  responsible      String
+  startDate        DateTime
+  endDate          DateTime
+  progress         Int       @default(0)
+  dependencies     String    @default("[]")
+  notes            String?
+  color            String    @default("#4472C4")
+  order            Int       @default(0)
+  stage            String?
+  subStage         String?
+  building         String?
+  facade           String?
+  floors           String?
+  scaffoldingNum   String?
+  cost             Float?
+  revenue          Float?
+  quantity         Float?
+  costLogistics    Float?
+  costInstallation Float?
+  costManagement   Float?
+  quotedPrice      Float?
+  costBreakdown    String?
+  wbsStage         String?
+  sdPhase          String?
+  customImage       String?
+  customImageRegion String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  version          Int       @default(1)
+  createdBy        String?
+  updatedBy        String?
+
+  changes          TaskChange[]
+  procurementItems ProcurementItem[]
+}
+
+model Baseline {
+  id        String         @id @default(cuid())
+  projectId String
+  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime       @default(now())
+  createdBy String?
+  tasks     BaselineTask[]
+}
+
+model BaselineTask {
+  id         String   @id @default(cuid())
+  baselineId String
+  baseline   Baseline @relation(fields: [baselineId], references: [id], onDelete: Cascade)
+  taskId     String
+  name       String
+  phase      String
+  startDate  DateTime
+  endDate    DateTime
+  progress   Int
+}
+
+model Milestone {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  date      DateTime
+  status    String   @default("green")
+  notes     String?
+  version   Int      @default(1)
+}
+
+model Recipient {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  email     String
+  phone     String?
+  active    Boolean @default(true)
+}
+
+model TaskChange {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  field     String
+  oldValue  String?
+  newValue  String?
+  changedBy String?
+  changedAt DateTime @default(now())
+}
+
+model FacadeRegion {
+  id        String   @id @default(cuid())
+  key       String
+  code      String
+  xPct      Float
+  yPct      Float
+  wPct      Float
+  hPct      Float
+  updatedAt DateTime @updatedAt
+
+  @@unique([key, code])
+}
+
+model ProcurementItem {
+  id           String    @id @default(cuid())
+  taskId       String
+  task         Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  projectId    String
+  name         String
+  sku          String?
+  quantity     Float?
+  unit         String?
+  neededByDate DateTime?
+  notes        String?
+  status       String    @default("pending")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  version      Int       @default(1)
+}
+
+// ──────────────────────────────────────────────
+// EQUIPMENT MODULE (from equipment-advisor)
+// ──────────────────────────────────────────────
+
+enum EquipmentType {
+  CRANE_TRUCK
+  MOBILE_CRANE
+  PLATFORM
+  SCAFFOLD
+  FORKLIFT
+  BASKET_TRUCK
+  OTHER
+}
+
+enum GroundType {
+  ASPHALT
+  DIRT
+  MIXED
+}
+
+model EquipmentCompany {
+  id        String      @id @default(cuid())
+  name      String
+  website   String?
+  phone     String?
+  notes     String?
+  createdAt DateTime    @default(now())
+  equipment Equipment[]
+  services  EquipmentService[]
+}
+
+model Equipment {
+  id                 String              @id @default(cuid())
+  type               EquipmentType
+  manufacturer       String
+  model              String
+  companyId          String?
+  company            EquipmentCompany?   @relation(fields: [companyId], references: [id])
+  workingHeightM     Float?
+  liftHeightM        Float?
+  maxCapacityKg      Float?
+  maxRadiusM         Float?
+  selfWeightKg       Float?
+  lengthM            Float?
+  widthM             Float?
+  heightM            Float?
+  requiresOutriggers Boolean             @default(false)
+  indoorSuitable     Boolean             @default(true)
+  outdoorSuitable    Boolean             @default(true)
+  groundType         GroundType          @default(MIXED)
+  notes              String?
+  imageUrl           String?
+  sourceUrl          String?
+  priceIls           Float?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  version            Int                 @default(1)
+
+  loadPoints         LoadCapacityPoint[]
+  accessories        EquipmentAccessory[]
+  orderItems         EquipmentOrderItem[]
+}
+
+model LoadCapacityPoint {
+  id          String    @id @default(cuid())
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  radiusM     Float
+  capacityKg  Float
+}
+
+model Accessory {
+  id         String               @id @default(cuid())
+  name       String
+  type       String
+  capacityKg Float?
+  weightKg   Float?
+  notes      String?
+  equipment  EquipmentAccessory[]
+  createdAt  DateTime             @default(now())
+}
+
+model EquipmentAccessory {
+  id          String    @id @default(cuid())
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  accessoryId String
+  accessory   Accessory @relation(fields: [accessoryId], references: [id], onDelete: Cascade)
+
+  @@unique([equipmentId, accessoryId])
+}
+
+model EquipmentService {
+  id        String           @id @default(cuid())
+  name      String
+  category  String
+  companyId String?
+  company   EquipmentCompany? @relation(fields: [companyId], references: [id])
+  priceIls  Float?
+  notes     String?
+  createdAt DateTime         @default(now())
+}
+
+model EquipmentOrder {
+  id           String               @id @default(cuid())
+  status       String               @default("draft")
+  customerName String?
+  projectName  String?
+  notes        String?
+  createdAt    DateTime             @default(now())
+  submittedAt  DateTime?
+  version      Int                  @default(1)
+  items        EquipmentOrderItem[]
+}
+
+model EquipmentOrderItem {
+  id           String         @id @default(cuid())
+  orderId      String
+  order        EquipmentOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  equipmentId  String
+  equipment    Equipment      @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  quantity     Int            @default(1)
+  notes        String?
+  deliveryDate DateTime?
+  endDate      DateTime?
+  createdAt    DateTime       @default(now())
+
+  @@unique([orderId, equipmentId])
+}
+
+model QuickOrder {
+  id          String    @id @default(cuid())
+  description String
+  neededBy    DateTime?
+  requestedBy String?
+  notes       String?
+  status      String    @default("pending")
+  createdAt   DateTime  @default(now())
+}
+
+// ──────────────────────────────────────────────
+// BUYOUT MODULE (from buyout-tool)
+// ──────────────────────────────────────────────
+
+model BuyoutPackage {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  unit        String   @default("m2")
+  qtyM2       Float    @default(0)
+  qtyLm       Float    @default(0)
+  budgetTotal Float    @default(0)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  version     Int      @default(1)
+
+  quotes     BuyoutQuote[]
+  components BuyoutComponent[]
+}
+
+model BuyoutQuote {
+  id         String        @id @default(cuid())
+  packageId  String
+  package    BuyoutPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  vendor     String
+  method     String        @default("lump")
+  value      Float
+  baseType   String?
+  baseValue  Float?
+  status     String        @default("received")
+  notes      String        @default("")
+  isSelected Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  version    Int           @default(1)
+}
+
+model BuyoutComponent {
+  id         String        @id @default(cuid())
+  packageId  String
+  package    BuyoutPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  name       String
+  unit       String        @default("m2")
+  budgetRate Float         @default(0)
+  actualCost Float         @default(0)
+  sortOrder  Int           @default(0)
+}
+
+model BuyoutBundle {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  offerRate   Float
+  area        Float
+  rows        String   @default("[]")
+  resultPkgId String?
+  createdAt   DateTime @default(now())
+}
+
+// ──────────────────────────────────────────────
+// SYSTEM
+// ──────────────────────────────────────────────
+
+model Settings {
+  id              String @id @default("singleton")
+  emailFrom       String @default("")
+  weeklyReportDay Int    @default(0)
+  weeklyReportTime String @default("08:00")
+}
