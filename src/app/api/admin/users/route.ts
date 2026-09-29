@@ -7,7 +7,7 @@ import { z } from 'zod'
 const CreateUserSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1).max(100),
-  password: z.string().min(8).max(128),
+  phone: z.string().min(9).max(15),
   role: z.enum(['ADMIN', 'MANAGER', 'SITE_MANAGER', 'WORKER', 'VIEWER']),
 })
 
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     )
   }
 
-  const { email, name, password, role } = parsed.data
+  const { email, name, phone, role } = parsed.data
 
   const exists = await prisma.user.findUnique({ where: { email } })
   if (exists) {
@@ -36,10 +36,10 @@ export async function POST(req: Request) {
     )
   }
 
-  const passwordHash = await hash(password, 12)
+  const passwordHash = await hash(phone, 12)
   const user = await prisma.user.create({
-    data: { email, name, passwordHash, role },
-    select: { id: true, email: true, name: true, role: true, createdAt: true },
+    data: { email, name, phone, passwordHash, role },
+    select: { id: true, email: true, name: true, phone: true, role: true, createdAt: true },
   })
 
   return NextResponse.json(user, { status: 201 })

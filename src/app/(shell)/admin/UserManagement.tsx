@@ -8,6 +8,7 @@ type UserRow = {
   id: string
   email: string
   name: string
+  phone: string | null
   role: Role
   createdAt: Date
 }
@@ -42,7 +43,7 @@ export default function UserManagement({
       body: JSON.stringify({
         email: form.get('email'),
         name: form.get('name'),
-        password: form.get('password'),
+        phone: form.get('phone'),
         role: form.get('role'),
       }),
     })
@@ -87,8 +88,8 @@ export default function UserManagement({
             <input name="email" type="email" required dir="ltr" className="mt-1" />
           </div>
           <div>
-            <label>סיסמה</label>
-            <input name="password" type="password" required dir="ltr" minLength={8} className="mt-1" />
+            <label>טלפון (משמש כסיסמה)</label>
+            <input name="phone" type="tel" required dir="ltr" minLength={9} placeholder="0501234567" className="mt-1" />
           </div>
           <div>
             <label>תפקיד</label>
@@ -126,6 +127,7 @@ export default function UserManagement({
             <tr style={{ background: 'var(--surface-2)' }}>
               <th className="text-right p-3 font-bold">שם</th>
               <th className="text-right p-3 font-bold">אימייל</th>
+              <th className="text-right p-3 font-bold">טלפון</th>
               <th className="text-right p-3 font-bold">תפקיד</th>
             </tr>
           </thead>
@@ -135,6 +137,9 @@ export default function UserManagement({
                 <td className="p-3 font-bold">{u.name}</td>
                 <td className="p-3" dir="ltr" style={{ color: 'var(--muted)' }}>
                   {u.email}
+                </td>
+                <td className="p-3" dir="ltr" style={{ color: 'var(--muted)' }}>
+                  {u.phone || '—'}
                 </td>
                 <td className="p-3">
                   <span className="badge badge-blue">{ROLE_LABELS[u.role]}</span>
