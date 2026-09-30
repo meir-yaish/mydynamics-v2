@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'MyDynamics',
+  title: 'MY-Dynamics',
   description: 'מערכת ניהול פרויקטים — אלום עשת',
 }
 

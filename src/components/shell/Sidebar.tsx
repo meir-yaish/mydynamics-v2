@@ -58,7 +58,7 @@ export default function Sidebar({
         }}
       >
         <span className="text-white font-bold text-lg tracking-wide">
-          MyDynamics
+          MY-Dynamics
         </span>
       </div>
 

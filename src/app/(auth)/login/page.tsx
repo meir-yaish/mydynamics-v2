@@ -26,7 +26,7 @@ export default function LoginPage() {
             }}
           >
             <span className="text-white font-bold text-xl tracking-wide">
-              MyDynamics
+              MY-Dynamics
             </span>
           </div>
           <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
