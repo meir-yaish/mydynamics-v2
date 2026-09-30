@@ -15,19 +15,19 @@ async function main() {
 
   const passwordHash = await hash(password, 12)
 
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@eshetdynamics.co.il' },
-    update: { phone: '0000000000' },
+  const meir = await prisma.user.upsert({
+    where: { email: 'meir@eshetdynamics.co.il' },
+    update: { passwordHash, phone: 'REDACTED_PHONE', role: 'ADMIN' },
     create: {
-      email: 'admin@eshetdynamics.co.il',
-      name: 'מנהל מערכת',
-      phone: '0000000000',
+      email: 'meir@eshetdynamics.co.il',
+      name: 'מאיר',
+      phone: 'REDACTED_PHONE',
       passwordHash,
       role: 'ADMIN',
     },
   })
 
-  console.log(`Admin user ready: ${admin.email} (${admin.id})`)
+  console.log(`Admin user ready: ${meir.email} (${meir.id})`)
 }
 
 main()

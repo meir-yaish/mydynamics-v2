@@ -53,6 +53,7 @@ model Project {
   baselines   Baseline[]
   buyoutPackages BuyoutPackage[]
   buyoutBundles  BuyoutBundle[]
+  procurementItems ProcurementItem[]
 }
 
 model Task {
@@ -95,6 +96,8 @@ model Task {
 
   changes          TaskChange[]
   procurementItems ProcurementItem[]
+
+  @@index([projectId])
 }
 
 model Baseline {
@@ -169,6 +172,7 @@ model ProcurementItem {
   taskId       String
   task         Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
   projectId    String
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name         String
   sku          String?
   quantity     Float?
@@ -179,6 +183,9 @@ model ProcurementItem {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   version      Int       @default(1)
+
+  @@index([taskId])
+  @@index([projectId])
 }
 
 // ──────────────────────────────────────────────
@@ -218,7 +225,7 @@ model Equipment {
   manufacturer       String
   model              String
   companyId          String?
-  company            EquipmentCompany?   @relation(fields: [companyId], references: [id])
+  company            EquipmentCompany?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
   workingHeightM     Float?
   liftHeightM        Float?
   maxCapacityKg      Float?
@@ -278,7 +285,7 @@ model EquipmentService {
   name      String
   category  String
   companyId String?
-  company   EquipmentCompany? @relation(fields: [companyId], references: [id])
+  company   EquipmentCompany? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   priceIls  Float?
   notes     String?
   createdAt DateTime         @default(now())

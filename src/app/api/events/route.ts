@@ -7,14 +7,18 @@ export async function GET() {
     return new Response('Unauthorized', { status: 401 })
   }
 
+  const { id: userId, role } = session.user
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     start(controller) {
-      const unsubscribe = subscribe((event, data) => {
-        controller.enqueue(
-          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
-        )
-      })
+      const unsubscribe = subscribe(
+        (event, data) => {
+          controller.enqueue(
+            encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
+          )
+        },
+        { userId, role },
+      )
 
       const keepAlive = setInterval(() => {
         controller.enqueue(encoder.encode(': keepalive\n\n'))
@@ -25,8 +29,6 @@ export async function GET() {
         clearInterval(keepAlive)
       }
 
-      // Vercel has a 25s timeout for streaming responses on the Hobby plan.
-      // On Pro it's 5 minutes. We close after 4.5 minutes to be safe.
       setTimeout(() => {
         cleanup()
         controller.close()

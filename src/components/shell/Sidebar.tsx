@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   CalendarRange,
+  FilePlus,
   Construction,
   Receipt,
   Users,
@@ -20,11 +21,12 @@ import { can } from '@/lib/rbac'
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'דף הבית', icon: LayoutDashboard },
-  { href: '/schedule', label: 'לוח זמנים', icon: CalendarRange },
-  { href: '/equipment', label: 'ציוד הרמה', icon: Construction },
-  { href: '/buyout', label: 'תמכור', icon: Receipt },
+  { href: 'https://terminal3-scheduler-nine.vercel.app', label: 'לוח זמנים — טרמינל 3', icon: CalendarRange, external: true },
+  { href: 'https://schedule-studio-three.vercel.app', label: 'לוח זמנים — סטודיו', icon: FilePlus, external: true },
+  { href: 'https://equipment-advisor.vercel.app', label: 'ציוד הרמה', icon: Construction, external: true },
+  { href: 'https://buyout-tool.vercel.app', label: 'תמכור', icon: Receipt, external: true },
   { href: '/meetings', label: 'סיכום ישיבות', icon: Users },
-  { href: '/drawings', label: 'שרטוטים', icon: FileImage },
+  { href: 'https://koreh-sd.vercel.app', label: 'שרטוטים', icon: FileImage, external: true },
   { href: '/procurement', label: 'חיפוש רכש', icon: Search },
   { href: '/supply-chain', label: 'שרשרת הספקה', icon: Truck },
 ]
@@ -61,24 +63,41 @@ export default function Sidebar({
       </div>
 
       <div className="flex flex-col gap-0.5 flex-1">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        {NAV_ITEMS.map(({ href, label, icon: Icon, external }) => {
           const active =
-            href === '/dashboard'
+            !external && (href === '/dashboard'
               ? pathname === '/dashboard'
-              : pathname.startsWith(href)
+              : pathname.startsWith(href))
+          const linkStyle = {
+            padding: '0.6rem 0.8rem',
+            borderRadius: '8px',
+            color: active ? 'var(--primary-foreground)' : 'var(--ink)',
+            background: active ? 'var(--primary)' : 'transparent',
+            fontWeight: 700,
+            fontSize: '0.9rem',
+            textDecoration: 'none' as const,
+          }
+          if (external) {
+            return (
+              <a
+                key={href}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 transition-colors"
+                style={linkStyle}
+              >
+                <Icon size={18} />
+                {label}
+              </a>
+            )
+          }
           return (
             <Link
               key={href}
               href={href}
               className="flex items-center gap-2.5 no-underline transition-colors"
-              style={{
-                padding: '0.6rem 0.8rem',
-                borderRadius: '8px',
-                color: active ? 'var(--primary-foreground)' : 'var(--ink)',
-                background: active ? 'var(--primary)' : 'transparent',
-                fontWeight: 700,
-                fontSize: '0.9rem',
-              }}
+              style={linkStyle}
             >
               <Icon size={18} />
               {label}
@@ -131,6 +150,7 @@ export default function Sidebar({
           onClick={() => signOut({ callbackUrl: '/login' })}
           className="p-2 rounded-lg transition-colors hover:bg-gray-100"
           title="התנתק"
+          aria-label="התנתק מהמערכת"
         >
           <LogOut size={16} style={{ color: 'var(--muted)' }} />
         </button>

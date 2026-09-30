@@ -2,7 +2,8 @@ import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 function makePrisma() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
+  const url = (process.env.DATABASE_URL ?? '').replace(/^﻿/, '')
+  const adapter = new PrismaPg({ connectionString: url })
   return new PrismaClient({ adapter })
 }
 

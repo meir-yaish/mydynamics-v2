@@ -7,7 +7,8 @@ import { useState } from 'react'
 export default function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+  const raw = searchParams.get('callbackUrl') || '/dashboard'
+  const callbackUrl = raw.startsWith('/') ? raw : '/dashboard'
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
