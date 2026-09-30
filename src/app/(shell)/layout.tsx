@@ -10,7 +10,7 @@ export default async function ShellLayout({
   children: React.ReactNode
 }) {
   const session = await auth()
-  if (!session?.user) redirect('/login')
+  if (!session?.user?.id) redirect('/login')
 
   return (
     <SessionProvider session={session}>

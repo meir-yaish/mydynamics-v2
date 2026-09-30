@@ -1,11 +1,7 @@
 import { Suspense } from 'react'
-import { redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
 import LoginForm from './LoginForm'
 
-export default async function LoginPage() {
-  const session = await auth()
-  if (session) redirect('/dashboard')
+export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4"

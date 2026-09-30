@@ -62,22 +62,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   session: { strategy: 'jwt', maxAge: 30 * 60 },
-  cookies: {
-    sessionToken: {
-      name: 'authjs.session-token',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
-  },
   callbacks: {
     jwt({ token, user }) {
       if (user) {
         token.id = user.id!
         token.role = user.role
+        token.issuedAt = Math.floor(Date.now() / 1000)
+      }
+      const issuedAt = (token.issuedAt as number | undefined) ?? (token.iat as number | undefined)
+      if (issuedAt && Date.now() / 1000 - issuedAt > 30 * 60) {
+        delete (token as Record<string, unknown>).id
+        delete (token as Record<string, unknown>).role
+        delete (token as Record<string, unknown>).email
+        delete (token as Record<string, unknown>).name
       }
       return token
     },
