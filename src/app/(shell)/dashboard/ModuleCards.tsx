@@ -223,6 +223,7 @@ function SupplyChainSvg() {
 
 const MODULES = [
   {
+    num: 1,
     href: 'https://terminal3-scheduler-nine.vercel.app',
     label: 'לוח זמנים — טרמינל 3',
     desc: 'Gantt, תלויות, baselines, דוחות',
@@ -232,6 +233,7 @@ const MODULES = [
     external: true,
   },
   {
+    num: 2,
     href: 'https://schedule-studio-three.vercel.app',
     label: 'לוח זמנים — סטודיו',
     desc: 'יצירת לוז חדש, יבוא אקסל, WBS',
@@ -241,6 +243,7 @@ const MODULES = [
     external: true,
   },
   {
+    num: 3,
     href: 'https://equipment-advisor.vercel.app',
     label: 'ציוד הרמה',
     desc: 'קטלוג, המלצות, הזמנות',
@@ -250,6 +253,7 @@ const MODULES = [
     external: true,
   },
   {
+    num: 4,
     href: 'https://buyout-tool.vercel.app',
     label: 'תמכור',
     desc: 'הצעות מחיר, חבילות, ספקים',
@@ -259,6 +263,7 @@ const MODULES = [
     external: true,
   },
   {
+    num: 8,
     href: 'https://koreh-sd.vercel.app',
     label: 'שרטוטים',
     desc: 'צפייה בשרטוטים וחזיתות',
@@ -268,6 +273,7 @@ const MODULES = [
     external: true,
   },
   {
+    num: 7,
     href: '/meetings',
     label: 'סיכום ישיבות',
     desc: 'ישיבות צוות, החלטות, מעקב',
@@ -276,6 +282,7 @@ const MODULES = [
     bg: '#fffbeb',
   },
   {
+    num: 6,
     href: '/procurement',
     label: 'חיפוש רכש',
     desc: 'חיפוש בהצעות מחיר',
@@ -284,6 +291,7 @@ const MODULES = [
     bg: '#fef2f2',
   },
   {
+    num: 5,
     href: '/supply-chain',
     label: 'שרשרת הספקה',
     desc: 'מעקב הזמנות ואספקה',
@@ -296,7 +304,7 @@ const MODULES = [
 export default function ModuleCards() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-      {MODULES.map(({ href, label, desc, Illustration, color, bg, external }) => (
+      {MODULES.map(({ num, href, label, desc, Illustration, color, bg, external }) => (
         <a
           key={href}
           href={href}
@@ -313,13 +321,33 @@ export default function ModuleCards() {
             position: 'relative',
           }}
         >
+          <span
+            style={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              width: 24,
+              height: 24,
+              borderRadius: '50%',
+              background: '#f3f4f6',
+              color: '#6b7280',
+              fontSize: 11,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 2,
+            }}
+          >
+            {num}
+          </span>
           {external && (
             <ExternalLink
               size={14}
               style={{
                 position: 'absolute',
                 top: 10,
-                left: 10,
+                right: 10,
                 color: 'var(--muted)',
                 opacity: 0.4,
                 zIndex: 1,

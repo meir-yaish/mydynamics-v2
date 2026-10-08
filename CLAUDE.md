@@ -1,137 +1,521 @@
-# MyDynamics V2 — מערכת ניהול פרויקטים מאוחדת
+# MyDynamics — הוראות עבודה ל-Claude Code
 
-## Scope
-מערכת MyDynamics V2 המאוחדת של אשת דיינמיקס (אלום עשת אומן בע"מ).
-כל המודולים נמצאים כאן כ-route groups.
-מחליפה 10 אפליקציות נפרדות במערכת אחת מאובטחת.
 
-## Stack
-- **Framework:** Next.js 16.2.6 (Turbopack), React 19, TypeScript
-- **Auth:** Auth.js v5 (next-auth 5.0.0-beta.32), JWT strategy, CredentialsProvider
-- **DB:** Prisma 7.10 + @prisma/adapter-pg (PrismaPg) → Neon PostgreSQL
-- **Styling:** Tailwind CSS 4, PostCSS, design system in globals.css
-- **Validation:** zod 3.25
-- **Icons:** lucide-react (אין Crane — להשתמש ב-Construction)
-- **Real-time:** SSE via /api/events
+---
 
-## Architecture
+## מטרת הפרויקט
+
+MyDynamics צריכה לתפקד כ**מערכת אחת מאוחדת**, גם אם היא מורכבת ממספר אפליקציות/מודולים.
+המערכת מאפשרת למספר משתמשים לעבוד במקביל ממספר מחשבים, כולם מול אותו מקור נתונים מרכזי.
+
+---
+
+## 1. סטאק טכנולוגי — אל תסטה מזה
+
+| שכבה | טכנולוגיה | הערות |
+|---|---|---|
+| Framework | Next.js 16 (App Router) | אין Pages Router |
+| UI | Tailwind CSS 4 | בלי ספריית רכיבים חיצונית |
+| אייקונים | lucide-react (ברירת מחדל) | אפשר גם ספריות חיצוניות / SVG |
+| שפה | TypeScript (strict) | אין `any`, אין `as` מיותר |
+| ORM | Prisma 7 | אין SQL ישיר |
+| DB | PostgreSQL (Neon) | מרכזי, ענן |
+| Auth | Auth.js v5 (next-auth) | email + password, JWT |
+| Validation | Zod | לכל input מהמשתמש |
+| תאריכים | date-fns | לא moment, לא dayjs |
+| Deploy | Vercel | **אותו URL תמיד — לא ליצור פרויקט חדש** |
+
+**אין להוסיף ספרייה חדשה בלי אישור מפורש.**
+
+---
+
+## 2. כללי קוד
+
+### כללי — חובה
+
+- **TypeScript מלא** — אין `any`. אם אתה לא יודע את הטיפוס, תגדיר interface
+- **Server Components כברירת מחדל** — `"use client"` רק כשיש אינטראקציה (לחיצה, טופס, state)
+- **קבצים קטנים וממוקדים** — קומפוננטה אחת לקובץ, מקסימום ~150 שורות
+- **שמות באנגלית** — משתנים, פונקציות, קומפוננטות. תוכן בעברית
+- **אין console.log** — רק לדיבוג זמני, למחוק לפני commit
+
+### ארכיטקטורת קומפוננטות
+
 ```
-src/
-├── app/
-│   ├── (auth)/login/          ← דף login ציבורי (page.tsx + LoginForm.tsx)
-│   ├── (shell)/               ← layout מאומת עם sidebar + topbar
-│   │   ├── dashboard/         ← דף בית עם 7 כרטיסי מודולים
-│   │   ├── schedule/          ← לוח זמנים
-│   │   ├── equipment/         ← ציוד הרמה
-│   │   ├── buyout/            ← תמכור
-│   │   ├── meetings/          ← סיכום ישיבות
-│   │   ├── drawings/          ← שרטוטים
-│   │   ├── procurement/       ← חיפוש רכש
-│   │   ├── supply-chain/      ← שרשרת הספקה
-│   │   └── admin/             ← ניהול משתמשים (ADMIN בלבד)
-│   └── api/
-│       ├── auth/[...nextauth]/ ← Auth.js route handlers
-│       ├── admin/users/        ← CRUD משתמשים
-│       └── events/             ← SSE endpoint
-├── components/shell/           ← Sidebar, TopBar
-└── lib/
-    ├── auth.ts                 ← Auth.js config
-    ├── rbac.ts                 ← permission checks (can, assertCan)
-    ├── db.ts                   ← PrismaClient singleton with PrismaPg adapter
-    ├── api-utils.ts            ← protectedRoute() helper
-    ├── rate-limit.ts           ← in-memory rate limiter
-    └── realtime.ts             ← SSE broadcast
-```
+"use client" — רק כש:
+✅ יש useState / useEffect / onClick / onChange
+✅ יש אינטראקציה של המשתמש
 
-## Database — Neon PostgreSQL
-- **Project:** mydynamics-v2 (Neon console)
-- **Project ID:** round-sunset-71539168
-- **Region:** AWS US East 2 (Ohio)
-- **Branch:** production
-- **Host:** ep-wispy-glitter-b4ho3xrn.c-6.us-east-2.aws.neon.tech
-- **Database:** neondb
-- **User:** neondb_owner
-- **Prisma 7 חשוב:** אין url בסכמה — ה-URL מוגדר ב-prisma.config.ts (datasource.url)
-- **Adapter:** PrismaPg נדרש ב-constructor של PrismaClient (כולל seed.ts)
-
-## Security
-- Auth.js v5 with JWT strategy (CredentialsProvider)
-- RBAC: ADMIN > MANAGER > SITE_MANAGER > WORKER > VIEWER
-- Middleware (src/middleware.ts) — בודק JWT cookie, לא מייבא auth/prisma (Edge runtime)
-- zod validation על כל API inputs
-- Rate limiting על mutation endpoints (in-memory, צריך upstash לproduction)
-- Security headers ב-next.config.ts (X-Frame-Options, HSTS, nosniff, Permissions-Policy)
-- סיסמאות: bcryptjs 2.4.3, salt rounds 12
-
-## RBAC Permissions
-| פעולה | ADMIN | MANAGER | SITE_MANAGER | WORKER | VIEWER |
-|-------|-------|---------|--------------|--------|--------|
-| manage_users | V | | | | |
-| crud_all | V | V | | | |
-| edit_tasks | V | V | V | | |
-| view | V | V | V | V | V |
-| order_equipment | V | V | V | V | |
-| edit_quotes | V | V | | | |
-
-## Real-Time
-- SSE via /api/events עם keepalive כל 15 שניות, timeout 4.5 דקות
-- broadcast() ב-lib/realtime.ts לשליחת events מה-server
-
-## Conventions
-- כל model עם `version Int @default(1)` — optimistic locking
-- כל mutation: zod validation → RBAC check → rate limit → execute
-- להשתמש ב-`protectedRoute()` מ-lib/api-utils.ts לAPI routes
-- Next.js 16: useSearchParams() דורש Suspense boundary
-- Next.js 16: middleware deprecated, יש warning על proxy
-
-## ENV Variables (.env)
-- `DATABASE_URL` — Neon PostgreSQL connection string (עם sslmode=require)
-- `AUTH_SECRET` — Auth.js secret (random base64)
-- `AUTH_URL` — URL של האפליקציה (localhost:3000 local, vercel URL בproduction)
-- `ADMIN_SEED_PASSWORD` — סיסמת admin ראשוני (seed בלבד)
-
-## Admin User
-- **Email:** admin@eshetdynamics.co.il
-- **Role:** ADMIN
-- **Seed:** `npm run db:seed` (דורש ADMIN_SEED_PASSWORD ב-.env)
-
-## Commands
-```bash
-npm run dev          # שרת פיתוח (port 3000)
-npm run build        # build (כולל prisma generate)
-npm run start        # production server
-npm run db:push      # sync schema → Neon
-npm run db:studio    # Prisma Studio (GUI לDB)
-npm run db:seed      # seed admin user
-npx prisma generate  # generate Prisma client
+"use client" — לא כש:
+❌ הקומפוננטה רק מציגה נתונים
+❌ הקומפוננטה קוראת מ-DB
+❌ רק כי קומפוננטת אב היא client
 ```
 
-## Deploy — Vercel
-```bash
-vercel --yes                    # preview deploy
-vercel env add DATABASE_URL     # הגדרת connection string
-vercel env add AUTH_SECRET      # הגדרת secret
-vercel env add AUTH_URL          # URL של האפליקציה
-vercel --prod                   # production deploy
+### API ו-Server Actions
+
+- **Server Actions** לפעולות פשוטות (שמירה, מחיקה, עדכון)
+- **API Routes** רק אם צריך endpoint חיצוני
+- **Zod** לוולידציה על כל input — גם ב-server side
+- כל פעולה שמשנה נתונים חייבת בדיקת הרשאות ב-backend
+
+### Prisma
+
+- סכמה ב-`prisma/schema.prisma` — מקור האמת היחיד
+- שמות טבלאות ב-PascalCase: `Project`, `Task`, `User`
+- שמות שדות ב-camelCase: `createdAt`, `projectId`
+- **relations מפורשים** — תמיד להגדיר את שני הכיוונים
+- אחרי שינוי סכמה: `npx prisma db push` ואז `npx prisma generate`
+- **לא לשנות DB בלי לבדוק השפעה על שאר המערכת**
+
+---
+
+## 3. עיצוב וממשק (UI)
+
+### RTL — עברית כברירת מחדל
+
+- **`dir="rtl"`** על ה-layout הראשי
+- **כל הממשק בעברית** — תפריטים, כפתורים, הודעות, labels
+- Tailwind: להשתמש ב-**`ms-` / `me-` / `ps-` / `pe-`** במקום `ml-` / `mr-` / `pl-` / `pr-`
+  - `ms-4` = margin-start (ימין ב-RTL)
+  - `me-4` = margin-end (שמאל ב-RTL)
+- **`text-right`** כברירת מחדל לטקסט
+- Flex: **`flex-row-reverse`** כשצריך שהסדר יהיה מימין לשמאל
+- **אייקוני חץ** — לבדוק שהכיוון מתאים ל-RTL
+
+### סגנון כללי — מינימליסטי וחדשני
+
+- **פלטת צבעים מצומצמת:** רקע בהיר (gray-50 / white), טקסט כהה (gray-900), צבע אחד בלבד להדגשה (slate-800 או blue-600). פחות צבעים = יותר מקצועי
+- **ללא רקעים צבעוניים מתחרים** — לא gradient, לא כרטיסיות צבעוניות, לא borders עבים. להשתמש ב-spacing וטיפוגרפיה ליצירת היררכיה
+- **צללים עדינים** — `shadow-sm` מספיק ברוב המקרים. לא `shadow-lg` על כל אלמנט
+- **פינות עגולות מתונות** — `rounded-lg` מקסימום, לא `rounded-3xl`
+- פונט ברור וגדול מספיק לקריאה נוחה
+- **רספונסיבי** — חייב לעבוד גם על מסכים קטנים
+- **Loading states** — תמיד skeleton או spinner כשמשהו נטען
+- **הודעות שגיאה ברורות בעברית** — לא "Something went wrong"
+- **אנימציות מינימליות** — transition רק על hover ו-focus, לא אנימציות מיותרות
+
+### כפתורים ופעולות — כלל האייקון
+
+**לכל כפתור פעולה חייב להיות אייקון שמתאר את הפעולה.**
+
+מקורות אייקונים (לפי סדר עדיפות):
+1. **lucide-react** — ברירת מחדל, כבר מותקן
+2. **react-icons** — אם צריך אייקון שלא קיים ב-lucide (להתקין לפי צורך)
+3. **SVG חיצוני** — אם צריך אייקון מותאם, לשמור ב-`/public/icons/` או כקומפוננטה ב-`/components/icons/`
+4. **CDN** (Heroicons, Phosphor, FontAwesome) — אם מתאים לעיצוב
+
+```
+✅ נכון:
+<button><Plus /> הוסף פרויקט</button>
+<button><Trash2 /> מחק</button>
+<button><Download /> ייצוא</button>
+<button><Search /> חיפוש</button>
+<button><Save /> שמור</button>
+<button><Edit /> עריכה</button>
+<button><Filter /> סינון</button>
+<button><ChevronRight /> הבא</button>  (ב-RTL: ChevronLeft)
+
+❌ לא נכון:
+<button>הוסף פרויקט</button>  ← חסר אייקון
+<button><Plus /></button>  ← חסר טקסט (חוץ מכפתורי icon-only בטולבר)
 ```
 
-## Known Issues / Notes
-- lucide-react: אין אייקון Crane, להשתמש ב-Construction
-- Prisma 7: לא תומך ב-url בתוך schema.prisma — חייב prisma.config.ts
-- Prisma 7: PrismaClient דורש adapter בconstructor
-- Rate limiter: in-memory, לא עובד cross-function ב-Vercel — צריך @upstash/ratelimit
-- middleware.ts: לא מייבא auth.ts/prisma (Edge runtime) — בודק cookie ישירות
-- next-auth: גרסת beta בלבד (5.0.0-beta.32) — אין stable release
+- כפתור ראשי: רקע כהה (slate-800 / gray-900) + טקסט לבן
+- כפתור משני: border דק (border-gray-300) + טקסט כהה, רקע שקוף
+- כפתור מחיקה/סכנה: טקסט אדום (text-red-600), בלי רקע אדום
+- מרחק בין אייקון לטקסט: `gap-2`
+- גודל אייקון: `w-4 h-4` לכפתורים רגילים, `w-5 h-5` לכפתורים גדולים
 
-## Blueprint Sources (מהאפליקציות הישנות)
-- `terminal3-scheduler/` — Gantt chart, Task model, schedule logic
-- `במות מנופים/` — Equipment models, sidebar design, globals.css
-- `תמכור הצעות מחיר/` — Buyout models
-- `קוראה-SD/` — Sidebar with lucide-react
+### טבלאות ורשימות
 
-## Phase Plan
-1. **[DONE]** תשתית — Auth, RBAC, shell, schema, security
-2. **[NEXT]** מודול לוח זמנים — port terminal3-scheduler
-3. ציוד + תמכור — port equipment-advisor + buyout-tool
-4. מודולים נוספים + SSE real-time
-5. Polish + cutover
+- **רווח נדיב בין שורות** — `py-3` מינימום, לא צפוף
+- **ללא borders כבדים** — רק `border-b border-gray-100` בין שורות
+- **Header של טבלה** — `text-gray-500 text-sm font-medium`, לא bold שחור
+- **Hover על שורה** — `hover:bg-gray-50` בלבד, לא צבע חזק
+- **Empty state** — אייקון + טקסט מסביר, לא רק "אין נתונים"
+
+### כרטיסיות (Cards)
+
+- רקע לבן, `border border-gray-200`, `rounded-lg`, `shadow-sm`
+- **ללא רקע צבעוני** לכרטיסיות רגילות
+- ריווח פנימי `p-5` או `p-6`
+- כותרת כרטיסייה: `text-lg font-semibold`, לא ענקי
+
+### מבנה UI קבוע
+
+```
+Layout:
+├── Header (ניווט ראשי + שם משתמש) — נקי, רקע לבן, border-b דק
+├── Sidebar (תפריט אפליקציות/מודולים) — רקע gray-50, אייקון + טקסט לכל פריט
+└── Main Content — רקע gray-50/white
+    ├── Page Header (כותרת + כפתורי פעולה עם אייקונים)
+    └── Content Area
+```
+
+---
+
+## 4. מבנה העבודה
+
+סביבת Claude Code **נפרדת** לכל אפליקציה. אין לפתוח או לנתח את כל האפליקציות בכל פעם.
+
+**כלל חשוב — כאשר עובדים על אפליקציה:**
+- לעבוד **רק** עליה
+- לקרוא **רק** את הקבצים הדרושים לה
+- **לא** להריץ אפליקציות אחרות
+- **לא** לבצע סריקה מלאה של כל הפרויקט
+- **לא** לטעון קוד שאינו נחוץ למשימה
+
+## 5. עבודה על MainApp (Hub)
+
+ל-MainApp סביבת עבודה נפרדת. כאשר עובדים עליה:
+- לעבוד **רק** על הפיתוח של MainApp
+- **לא** להריץ את כל האפליקציות במקביל
+- **לא** לבצע build/test לכל הפרויקט ללא צורך
+- להשתמש בתיקיית `Claude/` רק להבנת הארכיטקטורה והקשרים
+
+## 6. תיקיית Claude
+
+כל המידע המרכזי נמצא ב-`Claude/`:
+- `ARCHITECTURE.md` — ארכיטקטורה, DB, API, auth, סנכרון, תקשורת בין רכיבים
+- `APPS.md` — תיאור כל אפליקציה, נתונים, APIs, קשרים
+- `VARIATIONS.md` — וריאציות, החלטות, גרסאות
+
+## 7. מקור נתונים מרכזי
+
+המערכת עובדת מול **מקור נתונים מרכזי אחד**.
+אין ליצור מצב שבו לכל מחשב DB עצמאי שאינו מסתנכרן.
+
+```
+              MyDynamics Backend
+                     │
+              Central Database
+                     │
+     ┌───────────────┼───────────────┐
+     │               │               │
+  מחשב 1          מחשב 2          מחשב 3
+  מנהל            מנהל עבודה       עובד
+```
+
+## 8. סנכרון בין מחשבים
+
+- שינוי שנשמר בשרת צריך להיות זמין מיד למשתמשים אחרים
+- להשתמש בסנכרון real-time או כמעט real-time כאשר מתאים
+- אם realtime לא מתאים — מנגנון refresh/sync אמין
+
+## 9. מניעת דריסת מידע
+
+לתכנן כך ששני משתמשים לא ידרסו בטעות שינוי של אחר:
+- timestamps
+- versioning
+- optimistic locking
+- conflict detection
+
+**אין להכניס מנגנון חדש לפני שבודקים מה כבר קיים בפרויקט.**
+
+## 10. הרשאות
+
+המערכת תומכת במשתמשים ותפקידים (Manager, Site Manager, Worker).
+- הרשאות חייבות להיאכף **גם ב-Backend** — לא רק הסתרת כפתורים ב-Frontend
+
+## 11. עבודה חסכונית בטוקנים ובזמן
+
+**כלל מרכזי.** אין לבצע פעולות רחבות כאשר ניתן לבצע פעולה ממוקדת.
+
+אם המשתמש מבקש "לתקן את מסך המשימות ב-App2":
+1. לזהות את הקבצים הרלוונטיים
+2. לשנות **רק** אותם
+3. להריץ **רק** בדיקות רלוונטיות
+4. לבדוק שהשינוי לא שבר interface/API קריטי
+
+**אין:**
+- לסרוק את כל האפליקציות
+- להריץ את כל הבדיקות
+- לפתוח את כל הפרויקט
+- לבצע build לכל המערכת
+
+## 12. הרצה ממוקדת
+
+```
+עובדים על App1 → מריצים App1 בלבד
+עובדים על App2 → מריצים App2 בלבד
+עובדים על MainApp → מריצים MainApp בלבד
+```
+
+בדיקת אינטגרציה — רק כאשר יש צורך אמיתי, ורק הרכיבים הדרושים.
+
+## 13. לפני שינוי משמעותי
+
+1. בדוק את המבנה הקיים
+2. בדוק האם כבר קיים פתרון לבעיה
+3. אל תיצור מערכת כפולה
+4. אל תיצור API חדש אם API מתאים כבר קיים
+5. אל תשנה DB בלי לבדוק את ההשפעה על שאר המערכת
+6. שמור תאימות עם שאר האפליקציות
+
+## 14. הפרדה בין פיתוח לאינטגרציה
+
+```
+פיתוח:
+  App1 ── עצמאי
+  App2 ── עצמאי
+  App3 ── עצמאי
+  MainApp ── עצמאי
+           ↓
+      Integration
+           ↓
+      MyDynamics
+           ↓
+  Central Backend/Database
+```
+
+## 15. קבצים ישנים ו-duplicates
+
+כאשר נמצא קובץ ישן או duplicate:
+- לבדוק האם עדיין בשימוש
+- לבדוק האם מכיל מידע לשימור
+- **לא למחוק** לפני אימות
+- מידע רלוונטי — לאחד לתיקיית `Claude/` או למקום הנכון
+- **אין מחיקה רחבה ללא בדיקה**
+
+## 16. כלל Scope
+
+```
+משתמש אומר "עבוד על App1" → SCOPE = App1 בלבד
+משתמש אומר "עבוד על App2" → SCOPE = App2 בלבד
+משתמש אומר "עבוד על MainApp" → SCOPE = MainApp בלבד
+```
+
+אין להרחיב scope ללא צורך. אם מתגלה תלות — לבדוק רק את החלק הספציפי הנדרש.
+
+## 17. יעד סופי
+
+MyDynamics = **מערכת אחת** עם:
+- Backend מרכזי
+- Database מרכזי
+- משתמשים מרכזיים + הרשאות
+- סנכרון + נתונים משותפים
+- עבודה מקבילית ממספר מחשבים
+- היסטוריית שינויים + מניעת דריסת נתונים
+- פיתוח מבודד לכל אפליקציה
+
+## 18. כלל עבודה אחרון
+
+- אל תניח שהארכיטקטורה הנוכחית נכונה
+- בדוק מה כבר קיים, שמור על מה שעובד
+- אל תכפיל מערכות, אל תיצור duplicate data
+- בצע שינויים קטנים וממוקדים
+- בדיקות אינטגרציה מלאות — רק כשיש צורך
+
+---
+
+## 19. תלויות בין פעילויות (Predecessor / Successor)
+
+**חל רק על משימות התקנה (installation tasks).** שאר המשימות (תכנון, רכש, ניהול, תיעוד) עובדות רגיל בלי אכיפת תלויות.
+
+**כלל יסוד — כמו בבניין:** אי אפשר להתקין קיר מסך אלומיניום אם השלד לא קיים. אי אפשר לזגג אם השלד אלומיניום לא הותקן. זו שרשרת — כל פעולה תלויה בקודמת לה.
+
+### לוגיקה:
+
+```
+פעולה A (קודמת) → פעולה B (עוקבת)
+
+אם A לא הושלמה → B לא יכולה להתחיל
+אם A בתהליך → B ממתינה
+אם A הושלמה → B פתוחה לביצוע
+```
+
+### מודל נתונים:
+
+```prisma
+model TaskDependency {
+  id              String @id @default(cuid())
+  predecessorId   String // המשימה שחייבת להסתיים קודם
+  successorId     String // המשימה שממתינה
+  type            String @default("FS") // FS=Finish-to-Start, SS, FF, SF
+  lagDays         Int    @default(0)     // ימי השהייה בין הפעולות (0 = מיד אחרי)
+  predecessor     Task   @relation("predecessors", fields: [predecessorId], references: [id])
+  successor       Task   @relation("successors", fields: [successorId], references: [id])
+}
+```
+
+סוגי תלות:
+- **FS (Finish-to-Start)** — ברירת מחדל. A חייבת להסתיים לפני ש-B מתחילה. דוגמה: שלד → אלומיניום → זיגוג
+- **SS (Start-to-Start)** — B יכולה להתחיל רק אחרי ש-A התחילה
+- **FF (Finish-to-Finish)** — B לא יכולה להסתיים לפני ש-A הסתיימה
+- **SF (Start-to-Finish)** — נדיר
+
+### מתי חל ומתי לא:
+
+```
+✅ חל — משימות התקנה:
+   שלד בטון → שלד אלומיניום → זיגוג → איטום → גמר
+
+❌ לא חל — שאר המשימות:
+   תכנון, הזמנות, רכש, ישיבות, תיעוד, QA — עובדות רגיל, בלי נעילה
+```
+
+משימה מוגדרת כ"התקנה" לפי שדה `category` בטבלת Task. רק כשה-category הוא `"installation"` מופעלת אכיפת התלויות.
+
+### כללי אכיפה (התקנות בלבד):
+
+1. **משימת התקנה עם קודמת שלא הושלמה — לא ניתנת לביצוע.** להציג אותה כנעולה (אייקון נעילה) עם הסבר: "ממתינה ל: [שם המשימה הקודמת]"
+2. **לא ניתן לסמן משימת התקנה כהושלמה אם היא תלויה בפעולה שעוד בתהליך** — להציג שגיאה ברורה
+3. **כשפעולה קודמת מושלמת — לעדכן אוטומטית את הסטטוס** של העוקבות ל"פתוח לביצוע"
+4. **זיהוי לולאה** — אסור A→B→C→A. לבדוק בכל יצירת תלות חדשה
+5. **lag** — אם יש ימי השהייה (למשל 3 ימי ייבוש בין יציקה לעבודה הבאה), לחשב את תאריך ההתחלה בהתאם
+6. **משימה רגילה (לא התקנה) — אף פעם לא ננעלת**, גם אם יש לה תלות מוגדרת. התלות מוצגת כמידע בלבד, לא כחסימה
+
+### הצגה ב-UI:
+
+- בתצוגת Gantt: **קווי חיבור (dependency arrows)** בין הפעילויות
+- בתצוגת רשימה: עמודת "ממתינה ל" עם שם הפעולה הקודמת
+- משימה נעולה: רקע `bg-gray-50`, טקסט `text-gray-400`, אייקון נעילה
+- משימה פתוחה לביצוע: רקע רגיל, ללא נעילה
+- **Critical Path (נתיב קריטי)**: הדגשה של שרשרת הפעילויות הארוכה ביותר — עיכוב בה מעכב את כל הפרויקט
+
+---
+
+## 20. אימות עצמי — אל תגיד "בוצע" בלי לבדוק
+
+**כלל קריטי.** לפני שאתה מדווח שמשימה הושלמה, אתה חייב לוודא בעצמך שהיא באמת עובדת.
+
+### מה לבדוק לפני דיווח:
+
+**שינוי קוד / פיצ'ר חדש:**
+1. ודא שאין שגיאות TypeScript — הרץ `npx tsc --noEmit` על הקבצים שנשתנו
+2. ודא שה-build עובר — `npm run build` (אם השינוי משמעותי)
+3. אם שינית UI — הרץ את האפליקציה ובדוק שהדף נטען בלי שגיאות
+4. אם שינית API/DB — בדוק שהפעולה עובדת (query, mutation)
+
+**תיקון באג:**
+1. שחזר את הבאג — ודא שאתה רואה אותו לפני התיקון
+2. תקן
+3. ודא שהבאג נעלם — בדוק שוב את אותו התרחיש
+4. ודא שלא שברת משהו אחר בסביבה הקרובה
+
+**שינוי עיצוב / CSS:**
+1. בדוק שהדף נטען
+2. בדוק שה-RTL תקין
+3. בדוק שאין overflow או אלמנטים חתוכים
+
+### פורמט דיווח:
+
+```
+❌ לא ככה:
+"ביצעתי את השינוי, תבדוק"
+
+✅ ככה:
+"ביצעתי את השינוי:
+- בדקתי build — עובר ✓
+- בדקתי שהדף נטען — תקין ✓
+- בדקתי RTL — תקין ✓
+- [אם יש בעיה:] שמתי לב ש-X עדיין לא מושלם, צריך Y"
+```
+
+**אם אתה לא יכול לאמת משהו** (למשל, צריך דפדפן) — אמור במפורש מה בדקת ומה לא הצלחת לבדוק, כדי שהמשתמש ידע בדיוק מה הוא צריך לבדוק בעצמו.
+
+---
+
+## 21. מערכת התראות חכמה (Rule-Based Alerts)
+
+המערכת חייבת לזהות חריגות ולהתריע אוטומטית — בלי שהמשתמש צריך לחפש בעצמו.
+
+### עקרונות
+
+- **ההתראות רצות בשרת** — Server-side logic, לא תלוי בדפדפן פתוח
+- **בלי API חיצוני** — הכל מחושב מהנתונים שב-DB
+- **סף להגדרה** — המשתמש מגדיר את הסף (למשל 90% תקציב), לא hardcoded
+- **אין spam** — התראה נשלחת פעם אחת, לא כל רגע. לסמן `alertSentAt` בטבלה
+
+### סוגי התראות
+
+**תקציב:**
+- הוצאות ≥ X% מהתקציב המאושר → התראה צהובה (ברירת מחדל: 80%)
+- הוצאות ≥ Y% מהתקציב המאושר → התראה אדומה (ברירת מחדל: 95%)
+- חריגה מעל התקציב → התראה קריטית
+- הוצאה בודדת חריגה (גדולה מ-Z% מסך הסעיף) → דגל
+
+**לו"ז:**
+- משימה עברה את תאריך היעד ולא הושלמה → התראה אדומה
+- משימה מתקרבת לתאריך יעד (X ימים לפני) ולא התחילה → התראה צהובה
+- קצב התקדמות — אם % ביצוע נמוך מ-% זמן שעבר → התראה על פיגור צפוי
+- אבן דרך (milestone) בסיכון → התראה
+
+**הכנסות / גבייה:**
+- חשבונית שלא שולמה לאחר X ימים מתאריך הגשה → התראה
+- פער בין הכנסות צפויות לבפועל → התראה
+- סכום חוזה שטרם חויב ← תזכורת
+
+**כללי:**
+- פריט ללא אחראי (משימה/הזמנה בלי מישהו שמטפל) → דגל
+- נתון חסר (פרויקט בלי תקציב, משימה בלי תאריך יעד) → דגל
+
+### מודל נתונים
+
+```prisma
+model Alert {
+  id          String   @id @default(cuid())
+  projectId   String
+  type        String   // "budget" | "schedule" | "payment" | "general"
+  severity    String   // "info" | "warning" | "critical"
+  title       String   // "חריגת תקציב — קומה 7"
+  message     String   // "ההוצאות הגיעו ל-92% מהתקציב המאושר"
+  entityType  String?  // "task" | "invoice" | "budget_line"
+  entityId    String?
+  isRead      Boolean  @default(false)
+  isDismissed Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  readAt      DateTime?
+  project     Project  @relation(fields: [projectId], references: [id])
+}
+
+model AlertRule {
+  id          String  @id @default(cuid())
+  projectId   String?  // null = כלל גלובלי
+  type        String   // "budget_warning" | "budget_critical" | "task_overdue" | ...
+  threshold   Float    // 0.8 | 0.95 | 7 (ימים) | ...
+  isActive    Boolean @default(true)
+  project     Project? @relation(fields: [projectId], references: [id])
+}
+```
+
+### הצגה ב-UI
+
+- **פעמון התראות** בהדר — עם מספר (badge) של התראות שלא נקראו
+- **לחיצה** → dropdown עם רשימת ההתראות, מהחדשה לישנה
+- **כל התראה:** אייקון צבעוני לפי severity + כותרת + זמן + קישור לפריט הרלוונטי
+- **דשבורד:** כרטיסיית "התראות פעילות" עם סיכום מהיר
+- **צבעים:**
+  - info: `text-blue-600` + `bg-blue-50`
+  - warning: `text-amber-600` + `bg-amber-50`
+  - critical: `text-red-600` + `bg-red-50`
+
+### לוגיקת הרצה
+
+- **מתי לבדוק:** בכל שמירת נתונים רלוונטיים (הוצאה חדשה → בדוק תקציב, עדכון משימה → בדוק לו"ז)
+- **אופציונלי:** cron job יומי שסורק את כל הפרויקטים הפעילים ומייצר התראות חדשות
+- **אל תייצר התראה כפולה** — לפני יצירה, בדוק שאין התראה פתוחה מאותו סוג על אותו פריט
+
+---
+
+## טעויות נפוצות — אל תעשה את זה
+
+| ❌ אל תעשה | ✅ תעשה במקום |
+|---|---|
+| `"use client"` על כל קומפוננטה | Server Component כברירת מחדל |
+| `any` ב-TypeScript | הגדר interface/type מפורש |
+| `ml-4` / `mr-4` | `ms-4` / `me-4` (תומך RTL) |
+| הודעות שגיאה באנגלית | הודעות בעברית ברורות |
+| `console.log` בקוד סופי | למחוק או להחליף ב-error handling |
+| הוספת ספרייה חדשה | לבדוק אם אפשר עם מה שיש |
+| SQL ישיר | Prisma queries |
+| קומפוננטה ענקית (300+ שורות) | לפצל לקומפוננטות קטנות |
+| יצירת Vercel project חדש | deploy לאותו URL קיים |
+| מחיקת קבצים בלי אישור | לשאול לפני כל מחיקה |
+| להגיד "בוצע" בלי לבדוק | להריץ build/tsc ולדווח תוצאות |
+| "תבדוק בדפדפן" בלי הסבר | לפרט מה בדקת ומה נשאר לבדיקה ידנית |
+
+---
+
+**המטרה: פיתוח ממוקד + צריכת טוקנים נמוכה + זמן עבודה קצר + MyDynamics מסונכרנת.**

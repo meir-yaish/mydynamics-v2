@@ -1,8 +1,11 @@
 node_modules/
 .next/
 .env
-.env.local
+.env.*
 src/generated/
 *.tsbuildinfo
 
 .vercel
+Claude outputs/
+claude-setup/
+backups/
