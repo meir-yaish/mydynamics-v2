@@ -161,16 +161,10 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     const el = scrollRef.current
     if (!el) return
     function onWheel(e: WheelEvent) {
-      if (!e.ctrlKey) {
-        // בלי Ctrl — מנע גלילה בגאנט, תן לדף לגלול
-        e.preventDefault()
-        window.scrollBy(e.deltaX, e.deltaY)
-        return
-      }
-      // עם Ctrl — גלול את הגאנט
+      if (!e.ctrlKey) return  // גלילה רגילה — הגאנט גולל כרגיל
+      // Ctrl + גלגלת — זום
       e.preventDefault()
-      el!.scrollLeft += e.deltaX || 0
-      el!.scrollTop += e.deltaY || 0
+      setZoom(z => Math.min(3, Math.max(0.2, parseFloat((z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(1)))))
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
