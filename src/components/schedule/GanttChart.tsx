@@ -161,10 +161,20 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     const el = scrollRef.current
     if (!el) return
     function onWheel(e: WheelEvent) {
-      if (!e.ctrlKey) return  // גלילה רגילה — הגאנט גולל כרגיל
-      // Ctrl + גלגלת — זום
+      if (!e.ctrlKey) return
       e.preventDefault()
-      setZoom(z => Math.min(3, Math.max(0.2, parseFloat((z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(1)))))
+      const rect = el!.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left   // עמדת העכבר בחלון הגאנט
+      const worldX = el!.scrollLeft + mouseX  // עמדה ב-SVG לפני זום
+      const delta = e.deltaY < 0 ? 0.1 : -0.1
+      setZoom(prev => {
+        const next = Math.min(3, Math.max(0.2, parseFloat((prev + delta).toFixed(1))))
+        const ratio = next / prev
+        requestAnimationFrame(() => {
+          if (scrollRef.current) scrollRef.current.scrollLeft = worldX * ratio - mouseX
+        })
+        return next
+      })
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
