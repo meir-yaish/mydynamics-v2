@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react'
 import { differenceInDays, addMonths } from 'date-fns'
 import { JEWISH_HOLIDAYS, MUSLIM_HOLIDAYS } from '@/lib/schedule/calendar'
 import ProcurementPanel, { ProcurementPanelHandle } from './ProcurementPanel'
@@ -101,6 +101,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const [excludedFromCascade, setExcludedFromCascade] = useState<Set<string>>(new Set())
   const [zoom, setZoom]               = useState(1)
   const [labelVisible, setLabelVisible] = useState(true)
+  const zoomScrollAdj = useRef<{ worldX: number; mouseX: number; ratio: number } | null>(null)
   const scrollRef     = useRef<HTMLDivElement>(null)
   const timelineHRef  = useRef<SVGGElement>(null)
   const labelsColRef  = useRef<SVGGElement>(null)
@@ -164,15 +165,12 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
       if (!e.ctrlKey) return
       e.preventDefault()
       const rect = el!.getBoundingClientRect()
-      const mouseX = e.clientX - rect.left   // עמדת העכבר בחלון הגאנט
-      const worldX = el!.scrollLeft + mouseX  // עמדה ב-SVG לפני זום
+      const mouseX = e.clientX - rect.left
+      const worldX = el!.scrollLeft + mouseX
       const delta = e.deltaY < 0 ? 0.1 : -0.1
       setZoom(prev => {
         const next = Math.min(3, Math.max(0.2, parseFloat((prev + delta).toFixed(1))))
-        const ratio = next / prev
-        requestAnimationFrame(() => {
-          if (scrollRef.current) scrollRef.current.scrollLeft = worldX * ratio - mouseX
-        })
+        zoomScrollAdj.current = { worldX, mouseX, ratio: next / prev }
         return next
       })
     }
@@ -182,6 +180,13 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
 
   const colW   = Math.max(20, Math.round(COL_WIDTH * zoom))
   const labelW = labelVisible ? LABEL_WIDTH : 0
+  useLayoutEffect(() => {
+    const adj = zoomScrollAdj.current
+    if (!adj || !scrollRef.current) return
+    zoomScrollAdj.current = null
+    scrollRef.current.scrollLeft = adj.worldX * adj.ratio - adj.mouseX
+  }, [zoom])
+
   const totalWidth = labelW + MONTHS.length * colW
   const phases = [...new Set(tasks.map(t => t.phase))]
 
