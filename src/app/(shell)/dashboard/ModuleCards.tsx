@@ -224,13 +224,12 @@ function SupplyChainSvg() {
 const MODULES = [
   {
     num: 1,
-    href: 'https://terminal3-scheduler-nine.vercel.app',
+    href: '/schedule',
     label: 'לוח זמנים — טרמינל 3',
     desc: 'Gantt, תלויות, baselines, דוחות',
     Illustration: ScheduleSvg,
     color: '#4f46e5',
     bg: '#eef2ff',
-    external: true,
   },
   {
     num: 2,

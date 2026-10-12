@@ -26,6 +26,7 @@ interface Task {
   quantity?: number | null
   cost?: number | null
   dependencies?: string | null
+  sdPhase?: string | null
   changes?: { field: string; oldValue: string | null; newValue: string | null; changedBy: string | null; changedAt: string }[]
 }
 
@@ -556,7 +557,12 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           <div className="fixed z-40 bg-gray-900 text-white text-sm rounded-lg px-3 py-2" dir="rtl"
             style={{ left: tooltip.x + 10, top: tooltip.y - 70, maxWidth: 340 }}>
             <button onClick={() => setTooltip(null)} className="absolute top-1 left-1.5 text-gray-400 hover:text-white text-xs leading-none">✕</button>
-            <div className="font-bold text-base">{tooltip.task.name}</div>
+            <div className="font-bold text-base flex items-center gap-2">
+              {tooltip.task.name}
+              {tooltip.task.sdPhase && (
+                <span style={{ fontSize: 11, background: '#EEF2FF', color: '#4472C4', padding: '1px 7px', borderRadius: 4, fontWeight: 700 }}>{tooltip.task.sdPhase}</span>
+              )}
+            </div>
             {(tooltip.task.stage || tooltip.task.subStage) && (
               <div className="text-blue-200 text-xs mt-0.5">
                 {[tooltip.task.stage ? `שלב ${tooltip.task.stage}` : null, tooltip.task.subStage ? `תת ${tooltip.task.subStage}` : null,
@@ -774,6 +780,12 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                   className="cursor-pointer"
                   onClick={e => { e.stopPropagation(); setTooltip(prev => prev?.task.id === task.id ? null : { task, x: e.clientX, y: e.clientY }) }}>ⓘ</text>
                 <text x={58} y={y + 16} fill={labelOverdue ? '#C00000' : '#222'} fontSize={14} fontWeight="600" fontFamily="Arial">{task.name}</text>
+                {task.sdPhase && (
+                  <>
+                    <rect x={LABEL_WIDTH - 54} y={y + 4} width={46} height={16} rx={4} fill="#EEF2FF" />
+                    <text x={LABEL_WIDTH - 31} y={y + 15} textAnchor="middle" fontSize={11} fill="#4472C4" fontWeight="700" fontFamily="Arial">{task.sdPhase}</text>
+                  </>
+                )}
                 {(task.stage || task.subStage || task.building) ? (
                   <>
                     <text x={20} y={y + 28} fill="#145a8c" fontSize={10} fontFamily="Arial">
