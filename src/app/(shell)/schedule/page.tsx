@@ -334,7 +334,13 @@ export default function SchedulePage() {
   )
 
   return (
-    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 56px)', background: '#F0F4F8', direction: 'rtl', fontFamily: 'Arial, sans-serif' }}>
+    <div style={{
+      position: 'fixed', top: 'var(--topbar-height, 56px)', bottom: 0,
+      right: 'var(--sidebar-width, 250px)', left: 0,
+      display: 'flex', flexDirection: 'column',
+      background: '#F0F4F8', direction: 'rtl', fontFamily: 'Arial, sans-serif',
+      zIndex: 5, transition: 'right 0.25s ease',
+    }}>
       {/* Toolbar */}
       <div style={{ background: '#1a1a1a', flexShrink: 0, padding: '8px 16px' }} className="flex items-center gap-3 flex-wrap">
         {/* Project selector */}
