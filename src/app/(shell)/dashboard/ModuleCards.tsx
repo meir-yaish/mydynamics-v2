@@ -1,7 +1,5 @@
 'use client'
 
-import { ExternalLink } from 'lucide-react'
-
 function ScheduleSvg() {
   return (
     <svg viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -233,43 +231,40 @@ const MODULES = [
   },
   {
     num: 2,
-    href: 'https://schedule-studio-three.vercel.app',
+    href: '#',
     label: 'לוח זמנים — סטודיו',
     desc: 'יצירת לוז חדש, יבוא אקסל, WBS',
     Illustration: ScheduleStudioSvg,
     color: '#059669',
     bg: '#ecfdf5',
-    external: true,
+    comingSoon: true,
   },
   {
     num: 3,
-    href: 'https://equipment-advisor.vercel.app',
+    href: '/equipment',
     label: 'ציוד הרמה',
     desc: 'קטלוג, המלצות, הזמנות',
     Illustration: EquipmentSvg,
     color: '#2563eb',
     bg: '#eff6ff',
-    external: true,
   },
   {
     num: 4,
-    href: 'https://buyout-tool.vercel.app',
+    href: '/buyout',
     label: 'תמכור',
     desc: 'הצעות מחיר, חבילות, ספקים',
     Illustration: BuyoutSvg,
     color: '#9333ea',
     bg: '#faf5ff',
-    external: true,
   },
   {
     num: 8,
-    href: 'https://koreh-sd.vercel.app',
+    href: '/drawings',
     label: 'שרטוטים',
     desc: 'צפייה בשרטוטים וחזיתות',
     Illustration: DrawingsSvg,
     color: '#16a34a',
     bg: '#f0fdf4',
-    external: true,
   },
   {
     num: 7,
@@ -303,21 +298,20 @@ const MODULES = [
 export default function ModuleCards() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-      {MODULES.map(({ num, href, label, desc, Illustration, color, bg, external }) => (
+      {MODULES.map(({ num, href, label, desc, Illustration, color, bg, comingSoon }) => (
         <a
-          key={href}
-          href={href}
-          target={external ? '_blank' : '_self'}
-          rel={external ? 'noopener noreferrer' : undefined}
+          key={num}
+          href={comingSoon ? undefined : href}
           className="card no-underline"
           style={{
             display: 'flex',
             flexDirection: 'column',
             color: 'inherit',
             textDecoration: 'none',
-            cursor: 'pointer',
+            cursor: comingSoon ? 'default' : 'pointer',
             overflow: 'hidden',
             position: 'relative',
+            opacity: comingSoon ? 0.6 : 1,
           }}
         >
           <span
@@ -340,18 +334,19 @@ export default function ModuleCards() {
           >
             {num}
           </span>
-          {external && (
-            <ExternalLink
-              size={14}
-              style={{
-                position: 'absolute',
-                top: 10,
-                right: 10,
-                color: 'var(--muted)',
-                opacity: 0.4,
-                zIndex: 1,
-              }}
-            />
+          {comingSoon && (
+            <span style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              background: '#f3f4f6',
+              color: '#9ca3af',
+              fontSize: 10,
+              fontWeight: 600,
+              padding: '2px 6px',
+              borderRadius: 6,
+              zIndex: 2,
+            }}>בהכנה</span>
           )}
           <div
             style={{
