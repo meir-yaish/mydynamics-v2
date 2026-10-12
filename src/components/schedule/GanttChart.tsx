@@ -99,6 +99,8 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const [checkingImpact, setCheckingImpact] = useState(false)
   const [earlyCompletionPrompt, setEarlyCompletionPrompt] = useState<{ onYes: () => void; onNo: () => void } | null>(null)
   const [excludedFromCascade, setExcludedFromCascade] = useState<Set<string>>(new Set())
+  const [zoom, setZoom]               = useState(1)
+  const [labelVisible, setLabelVisible] = useState(true)
   const scrollRef     = useRef<HTMLDivElement>(null)
   const timelineHRef  = useRef<SVGGElement>(null)
   const labelsColRef  = useRef<SVGGElement>(null)
@@ -155,7 +157,21 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     return () => el.removeEventListener('scroll', onScroll)
   }, [])
 
-  const totalWidth = LABEL_WIDTH + MONTHS.length * COL_WIDTH
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    function onWheel(e: WheelEvent) {
+      if (!e.ctrlKey) return
+      e.preventDefault()
+      setZoom(z => Math.min(3, Math.max(0.2, parseFloat((z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(1)))))
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  const colW   = Math.max(20, Math.round(COL_WIDTH * zoom))
+  const labelW = labelVisible ? LABEL_WIDTH : 0
+  const totalWidth = labelW + MONTHS.length * colW
   const phases = [...new Set(tasks.map(t => t.phase))]
 
   function getBarStyle(task: Pick<Task, 'startDate' | 'endDate'>) {
@@ -164,8 +180,8 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     const totalDays    = differenceInDays(projectEnd, projectStart)
     const startOffset  = Math.max(0, differenceInDays(new Date(task.startDate), projectStart))
     const duration     = Math.max(1, differenceInDays(new Date(task.endDate), new Date(task.startDate)))
-    const x     = LABEL_WIDTH + (startOffset / totalDays) * (MONTHS.length * COL_WIDTH)
-    const width = Math.max(4, (duration  / totalDays) * (MONTHS.length * COL_WIDTH))
+    const x     = labelW + (startOffset / totalDays) * (MONTHS.length * colW)
+    const width = Math.max(4, (duration  / totalDays) * (MONTHS.length * colW))
     return { x, width }
   }
 
@@ -174,7 +190,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     const projectEnd   = addMonths(MONTHS[MONTHS.length - 1], 1)
     const totalDays    = differenceInDays(projectEnd, projectStart)
     const offset       = differenceInDays(date, projectStart)
-    return LABEL_WIDTH + (offset / totalDays) * (MONTHS.length * COL_WIDTH)
+    return labelW + (offset / totalDays) * (MONTHS.length * colW)
   }
 
   const groupedTasks: { phase: string; tasks: Task[] }[] = phases.map(phase => ({
@@ -234,10 +250,30 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const muslimBands = buildHolidayBands(MUSLIM_HOLIDAYS)
 
   return (
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Gantt toolbar */}
+      <div className="flex items-center gap-3 px-3 py-1.5 border border-gray-200 rounded-t-lg bg-white" style={{ direction: 'rtl' }}>
+        <button
+          onClick={() => setLabelVisible(v => !v)}
+          className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50"
+          title={labelVisible ? 'הסתר עמודת תוויות' : 'הצג עמודת תוויות'}
+        >
+          {labelVisible ? '◀◀ הסתר תוויות' : '▶▶ הצג תוויות'}
+        </button>
+        <div className="flex items-center gap-1 me-auto">
+          <button onClick={() => setZoom(z => Math.max(0.2, parseFloat((z - 0.2).toFixed(1))))}
+            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 text-base font-bold">−</button>
+          <span className="text-xs text-gray-600 w-10 text-center">{Math.round(zoom * 100)}%</span>
+          <button onClick={() => setZoom(z => Math.min(3, parseFloat((z + 0.2).toFixed(1))))}
+            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 text-base font-bold">+</button>
+          <button onClick={() => setZoom(1)}
+            className="text-xs text-gray-500 hover:text-gray-800 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50 ms-1">איפוס</button>
+        </div>
+      </div>
     <div
       ref={scrollRef}
-      className="relative overflow-auto border border-gray-200 rounded-lg shadow flex-1 min-h-0"
-      style={{ direction: 'ltr' }}
+      className="relative border border-t-0 border-gray-200 rounded-b-lg shadow flex-1 min-h-0"
+      style={{ direction: 'ltr', overflowX: 'scroll', overflowY: 'auto' }}
     >
       {/* Edit Modal */}
       {editTask && (() => {
@@ -615,7 +651,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             return (
               <g key={`phase-${i}`}>
                 <rect x={0} y={y} width={totalWidth} height={ROW_HEIGHT} fill="#E8E8E8" />
-                {MONTHS.map((_, mi) => <line key={mi} x1={LABEL_WIDTH + mi * COL_WIDTH} y1={y} x2={LABEL_WIDTH + mi * COL_WIDTH} y2={y + ROW_HEIGHT} stroke="#CCC" strokeWidth={0.5} />)}
+                {MONTHS.map((_, mi) => <line key={mi} x1={labelW + mi * colW} y1={y} x2={labelW + mi * colW} y2={y + ROW_HEIGHT} stroke="#CCC" strokeWidth={0.5} />)}
                 {weekLineXs.map((wx, wi) => <line key={wi} x1={wx} y1={y} x2={wx} y2={y + ROW_HEIGHT} stroke="#DDD" strokeWidth={0.3} />)}
               </g>
             )
@@ -698,7 +734,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           const totalDays    = differenceInDays(projectEnd, projectStart)
           const todayOffset  = differenceInDays(new Date(), projectStart)
           if (todayOffset < 0 || todayOffset > totalDays) return null
-          const tx = LABEL_WIDTH + (todayOffset / totalDays) * (MONTHS.length * COL_WIDTH)
+          const tx = labelW + (todayOffset / totalDays) * (MONTHS.length * colW)
           return (
             <g>
               <line x1={tx} y1={HEADER_HEIGHT} x2={tx} y2={totalHeight} stroke="#FF4444" strokeWidth={2} strokeDasharray="4,3" />
@@ -711,15 +747,15 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
         })()}
 
         <g ref={timelineHRef}>
-          <rect x={LABEL_WIDTH} y={0} width={totalWidth - LABEL_WIDTH} height={HEADER_HEIGHT} fill="white" />
+          <rect x={labelW} y={0} width={totalWidth - labelW} height={HEADER_HEIGHT} fill="white" />
           {jewishBands.map((b, i) => <rect key={`jhh-${i}`} x={b.x} y={YEAR_H + MONTH_H} width={b.width} height={WEEK_H} fill="#4472C4" opacity={0.35} />)}
           {muslimBands.map((b, i) => <rect key={`mhh-${i}`} x={b.x} y={YEAR_H + MONTH_H} width={b.width} height={WEEK_H} fill="#2E7D32" opacity={0.40} />)}
           {years.map(year => {
             const yearMonths = MONTHS.filter(m => m.getFullYear() === year)
             if (!yearMonths.length) return null
             const startIdx = MONTHS.findIndex(m => m.getFullYear() === year)
-            const x = LABEL_WIDTH + startIdx * COL_WIDTH
-            const w = yearMonths.length * COL_WIDTH
+            const x = labelW + startIdx * colW
+            const w = yearMonths.length * colW
             return <g key={year}>
               <rect x={x} y={0} width={w} height={YEAR_H} fill="#111111" />
               <text x={x + w / 2} y={17} textAnchor="middle" fill="white" fontSize={13} fontWeight="bold" fontFamily="Arial">{year}</text>
@@ -727,8 +763,8 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           })}
           {MONTHS.map((month, i) => (
             <g key={i}>
-              <rect x={LABEL_WIDTH + i * COL_WIDTH} y={YEAR_H} width={COL_WIDTH} height={MONTH_H} fill={i % 2 === 0 ? '#2a2a2a' : '#1a1a1a'} />
-              <text x={LABEL_WIDTH + i * COL_WIDTH + COL_WIDTH / 2} y={YEAR_H + 16} textAnchor="middle" fill="white" fontSize={10} fontFamily="Arial">
+              <rect x={labelW + i * colW} y={YEAR_H} width={colW} height={MONTH_H} fill={i % 2 === 0 ? '#2a2a2a' : '#1a1a1a'} />
+              <text x={labelW + i * colW + colW / 2} y={YEAR_H + 16} textAnchor="middle" fill="white" fontSize={10} fontFamily="Arial">
                 {HEB_MONTHS[month.getMonth()].slice(0, 3)}
               </text>
             </g>
@@ -754,7 +790,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             if (row.type === 'phase') {
               return (
                 <g key={`lbl-ph-${i}`}>
-                  <rect x={0} y={y} width={LABEL_WIDTH} height={ROW_HEIGHT} fill="#E8E8E8" />
+                  <rect x={0} y={y} width={labelW} height={ROW_HEIGHT} fill="#E8E8E8" />
                   <rect x={0} y={y} width={6} height={ROW_HEIGHT} fill={row.color || '#1F3864'} />
                   <text x={16} y={y + ROW_HEIGHT / 2 + 5} fill="#1F3864" fontSize={13} fontWeight="bold" fontFamily="Arial">{row.label}</text>
                 </g>
@@ -766,7 +802,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             const isLabelSelected = selectedTaskId === task.id
             return (
               <g key={`lbl-tk-${task.id}`}>
-                <rect x={0} y={y} width={LABEL_WIDTH} height={ROW_HEIGHT}
+                <rect x={0} y={y} width={labelW} height={ROW_HEIGHT}
                   fill={isLabelSelected ? '#E8F0FB' : labelOverdue ? '#FFF0F0' : i % 2 === 0 ? '#FAFAFA' : 'white'}
                   className="cursor-pointer"
                   onClick={() => setSelectedTaskId(prev => prev === task.id ? null : task.id)}
@@ -780,10 +816,10 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                   className="cursor-pointer"
                   onClick={e => { e.stopPropagation(); setTooltip(prev => prev?.task.id === task.id ? null : { task, x: e.clientX, y: e.clientY }) }}>ⓘ</text>
                 <text x={58} y={y + 16} fill={labelOverdue ? '#C00000' : '#222'} fontSize={14} fontWeight="600" fontFamily="Arial">{task.name}</text>
-                {task.sdPhase && (
+                {task.sdPhase && labelW > 60 && (
                   <>
-                    <rect x={LABEL_WIDTH - 54} y={y + 4} width={46} height={16} rx={4} fill="#EEF2FF" />
-                    <text x={LABEL_WIDTH - 31} y={y + 15} textAnchor="middle" fontSize={11} fill="#4472C4" fontWeight="700" fontFamily="Arial">{task.sdPhase}</text>
+                    <rect x={labelW - 54} y={y + 4} width={46} height={16} rx={4} fill="#EEF2FF" />
+                    <text x={labelW - 31} y={y + 15} textAnchor="middle" fontSize={11} fill="#4472C4" fontWeight="700" fontFamily="Arial">{task.sdPhase}</text>
                   </>
                 )}
                 {(task.stage || task.subStage || task.building) ? (
@@ -819,13 +855,15 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
         </g>
 
         <g ref={cornerRef}>
-          <rect x={0} y={0} width={LABEL_WIDTH} height={HEADER_HEIGHT} fill="#111111" />
-          <text x={LABEL_WIDTH / 2} y={HEADER_HEIGHT / 2 + 1} textAnchor="middle" fill="white" fontSize={13} fontWeight="bold" fontFamily="Arial">
+          <rect x={0} y={0} width={labelW} height={HEADER_HEIGHT} fill="#111111" />
+          <text x={labelW / 2} y={HEADER_HEIGHT / 2 + 1} textAnchor="middle" fill="white" fontSize={13} fontWeight="bold" fontFamily="Arial">
             MY-Dynamics — לוח זמנים
           </text>
-          <text x={8} y={HEADER_HEIGHT - 14} fill="#AAD4FF" fontSize={9} fontFamily="Arial" fontWeight="bold">מס׳</text>
-          <text x={28} y={HEADER_HEIGHT - 14} fill="#AAD4FF" fontSize={9} fontFamily="Arial" fontWeight="bold">שם משימה</text>
-          <line x1={0} y1={HEADER_HEIGHT - 8} x2={LABEL_WIDTH} y2={HEADER_HEIGHT - 8} stroke="#AAD4FF" strokeOpacity={0.3} strokeWidth={0.5} />
+          {labelW > 60 && <>
+            <text x={8} y={HEADER_HEIGHT - 14} fill="#AAD4FF" fontSize={9} fontFamily="Arial" fontWeight="bold">מס׳</text>
+            <text x={28} y={HEADER_HEIGHT - 14} fill="#AAD4FF" fontSize={9} fontFamily="Arial" fontWeight="bold">שם משימה</text>
+            <line x1={0} y1={HEADER_HEIGHT - 8} x2={labelW} y2={HEADER_HEIGHT - 8} stroke="#AAD4FF" strokeOpacity={0.3} strokeWidth={0.5} />
+          </>}
         </g>
 
         {rows.map((row) => {
@@ -859,6 +897,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           </label>
         )}
       </div>
+    </div>
     </div>
   )
 }
