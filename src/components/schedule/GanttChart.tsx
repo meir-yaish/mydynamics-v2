@@ -43,7 +43,7 @@ interface GanttChartProps {
 const HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
 
 const COL_WIDTH   = 90
-const ROW_HEIGHT  = 48
+const ROW_HEIGHT  = 56
 const LABEL_WIDTH = 380
 const YEAR_H      = 26
 const MONTH_H     = 24
@@ -829,26 +829,26 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                   ? <rect x={0} y={y} width={5} height={ROW_HEIGHT} fill="#1F3864" />
                   : labelOverdue && <rect x={0} y={y} width={4} height={ROW_HEIGHT} fill="#C00000" />
                 }
-                <text x={30} y={y + 16} fill={labelOverdue ? '#C00000' : '#999'} fontSize={10} fontFamily="Arial" fontWeight="bold">{num}</text>
-                <text x={12} y={y + 17} fontSize={15} fill="#1F78C1" fontWeight="bold" fontFamily="Arial" textAnchor="middle"
+                <text x={30} y={y + 19} fill={labelOverdue ? '#C00000' : '#999'} fontSize={11} fontFamily="Arial" fontWeight="bold">{num}</text>
+                <text x={12} y={y + 20} fontSize={16} fill="#1F78C1" fontWeight="bold" fontFamily="Arial" textAnchor="middle"
                   className="cursor-pointer"
                   onClick={e => { e.stopPropagation(); setTooltip(prev => prev?.task.id === task.id ? null : { task, x: e.clientX, y: e.clientY }) }}>ⓘ</text>
-                <text x={58} y={y + 16} fill={labelOverdue ? '#C00000' : '#222'} fontSize={14} fontWeight="600" fontFamily="Arial">{task.name}</text>
+                <text x={58} y={y + 19} fill={labelOverdue ? '#C00000' : '#222'} fontSize={16} fontWeight="600" fontFamily="Arial">{task.name}</text>
                 {task.sdPhase && labelW > 60 && (
                   <>
-                    <rect x={labelW - 54} y={y + 4} width={46} height={16} rx={4} fill="#EEF2FF" />
-                    <text x={labelW - 31} y={y + 15} textAnchor="middle" fontSize={11} fill="#4472C4" fontWeight="700" fontFamily="Arial">{task.sdPhase}</text>
+                    <rect x={labelW - 56} y={y + 4} width={48} height={18} rx={4} fill="#EEF2FF" />
+                    <text x={labelW - 32} y={y + 17} textAnchor="middle" fontSize={12} fill="#4472C4" fontWeight="700" fontFamily="Arial">{task.sdPhase}</text>
                   </>
                 )}
                 {(task.stage || task.subStage || task.building) ? (
                   <>
-                    <text x={20} y={y + 28} fill="#145a8c" fontSize={10} fontFamily="Arial">
+                    <text x={20} y={y + 35} fill="#145a8c" fontSize={12} fontFamily="Arial">
                       {[task.stage ? `שלב ${task.stage}` : null, task.subStage ? `תת ${task.subStage}` : null,
                         task.building ? `בניין ${task.building}` : null, task.facade || null,
                         task.floors ? `ק׳ ${task.floors}` : null,
                         task.cost != null ? `₪${task.cost.toLocaleString('he-IL')}` : null].filter(Boolean).join(' | ')}
                     </text>
-                    <text x={20} y={y + 41} fill="#555" fontSize={10} fontFamily="Arial">
+                    <text x={20} y={y + 50} fill="#555" fontSize={12} fontFamily="Arial">
                       {task.phase === 'חלוקת פיגומים'
                         ? (task.notes || '')
                         : [task.scaffoldingNum ? `פיגום ${task.scaffoldingNum}` : null,
@@ -860,9 +860,9 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                   const preds = findPredecessors(task, tasks)
                   return (
                     <>
-                      <text x={20} y={y + 28} fill="#555" fontSize={10} fontFamily="Arial">{task.responsible}</text>
+                      <text x={20} y={y + 35} fill="#555" fontSize={12} fontFamily="Arial">{task.responsible}</text>
                       {preds.length > 0 && (
-                        <text x={20} y={y + 41} fill="#145a8c" fontSize={9} fontFamily="Arial">{`▶ ${preds.map(p => p.name).join(' + ')}`}</text>
+                        <text x={20} y={y + 50} fill="#145a8c" fontSize={11} fontFamily="Arial">{`▶ ${preds.map(p => p.name).join(' + ')}`}</text>
                       )}
                     </>
                   )
