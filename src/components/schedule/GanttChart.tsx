@@ -103,6 +103,9 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const [textScale, setTextScale]     = useState<number>(() => {
     try { return parseFloat(localStorage.getItem('gantt-text-scale') || '1') || 1 } catch { return 1 }
   })
+  const [uiScale, setUiScale]         = useState<number>(() => {
+    try { return parseFloat(localStorage.getItem('gantt-ui-scale') || '1') || 1 } catch { return 1 }
+  })
   const [labelVisible, setLabelVisible] = useState(true)
   const zoomScrollAdj = useRef<{ worldX: number; mouseX: number; ratio: number } | null>(null)
   const scrollRef     = useRef<HTMLDivElement>(null)
@@ -147,6 +150,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   }, [tasks])
 
   useEffect(() => { try { localStorage.setItem('gantt-text-scale', String(textScale)) } catch {} }, [textScale])
+  useEffect(() => { try { localStorage.setItem('gantt-ui-scale', String(uiScale)) } catch {} }, [uiScale])
 
   useEffect(() => {
     const el = scrollRef.current
@@ -273,7 +277,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const fs = (n: number) => Math.round(n * textScale)
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
+    <div className="flex flex-col flex-1 min-h-0" style={{ zoom: uiScale }}>
       {/* Gantt toolbar */}
       <div className="flex items-center gap-3 px-3 py-1.5 border border-gray-200 rounded-t-lg bg-white" style={{ direction: 'rtl' }}>
         <button
@@ -293,13 +297,23 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             className="text-base text-gray-500 hover:text-gray-800 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50 ms-1">איפוס</button>
         </div>
         <div className="flex items-center gap-1 border-s border-gray-200 ps-3">
-          <span className="text-sm text-gray-500 ms-1">מלל</span>
+          <span className="text-sm text-gray-500 ms-1">מלל SVG</span>
           <button onClick={() => setTextScale(s => Math.max(0.5, parseFloat((s - 0.1).toFixed(1))))}
-            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 font-bold text-base" title="הקטן מלל">א−</button>
+            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 font-bold text-base" title="הקטן מלל SVG">א−</button>
           <span className="text-base text-gray-600 w-12 text-center">{Math.round(textScale * 100)}%</span>
           <button onClick={() => setTextScale(s => Math.min(2, parseFloat((s + 0.1).toFixed(1))))}
-            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 font-bold text-base" title="הגדל מלל">א+</button>
+            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 font-bold text-base" title="הגדל מלל SVG">א+</button>
           <button onClick={() => setTextScale(1)}
+            className="text-base text-gray-500 hover:text-gray-800 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50 ms-1">איפוס</button>
+        </div>
+        <div className="flex items-center gap-1 border-s border-gray-200 ps-3">
+          <span className="text-sm text-gray-500 ms-1">ממשק</span>
+          <button onClick={() => setUiScale(s => Math.max(0.5, parseFloat((s - 0.1).toFixed(1))))}
+            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 font-bold text-base" title="הקטן ממשק">−</button>
+          <span className="text-base text-gray-600 w-12 text-center">{Math.round(uiScale * 100)}%</span>
+          <button onClick={() => setUiScale(s => Math.min(2, parseFloat((s + 0.1).toFixed(1))))}
+            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 font-bold text-base" title="הגדל ממשק">+</button>
+          <button onClick={() => setUiScale(1)}
             className="text-base text-gray-500 hover:text-gray-800 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50 ms-1">איפוס</button>
         </div>
       </div>
