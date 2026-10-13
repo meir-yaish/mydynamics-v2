@@ -624,9 +624,11 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
               </div>
             )}
             <div className="text-gray-300 text-xs">{tooltip.task.responsible}</div>
-            <div className="text-xs mt-0.5">
+            <div className="text-xs mt-0.5 text-gray-300">
               {new Date(tooltip.task.startDate).toLocaleDateString('he-IL')} — {new Date(tooltip.task.endDate).toLocaleDateString('he-IL')}
-              {' '}({Math.round((new Date(tooltip.task.endDate).getTime() - new Date(tooltip.task.startDate).getTime()) / 86400000) + 1} ימים)
+            </div>
+            <div className="text-xs font-bold text-amber-300 mt-0.5">
+              משך: {Math.round((new Date(tooltip.task.endDate).getTime() - new Date(tooltip.task.startDate).getTime()) / 86400000) + 1} ימים
             </div>
             <div className="text-xs">התקדמות: {tooltip.task.progress}%</div>
             {predecessors.length > 0 && (
