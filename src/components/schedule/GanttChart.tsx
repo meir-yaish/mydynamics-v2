@@ -277,9 +277,9 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const fs = (n: number) => Math.round(n * textScale)
 
   return (
-    <div className="flex flex-col flex-1 min-h-0" style={{ zoom: uiScale }}>
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Gantt toolbar */}
-      <div className="flex items-center gap-3 px-3 py-1.5 border border-gray-200 rounded-t-lg bg-white" style={{ direction: 'rtl' }}>
+      <div className="flex items-center gap-3 px-3 py-1.5 border border-gray-200 rounded-t-lg bg-white" style={{ direction: 'rtl', zoom: uiScale }}>
         <button
           onClick={() => setLabelVisible(v => !v)}
           className="flex items-center gap-1.5 text-base text-gray-600 hover:text-gray-900 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50"
@@ -354,7 +354,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
 
         return (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" onClick={() => setEditTask(null)}>
-            <div className="bg-white rounded-xl shadow-2xl w-[1200px] max-w-[95vw] max-h-[90vh] flex flex-col" dir="rtl" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-2xl w-[1200px] max-w-[95vw] max-h-[90vh] flex flex-col" dir="rtl" style={{ zoom: uiScale }} onClick={e => e.stopPropagation()}>
               <h3 className="text-xl font-bold text-[#1F3864] px-6 pt-6">עריכת משימה</h3>
               <div className="flex gap-4 px-6 py-4 flex-1 min-h-0">
                 <div className="flex-1 min-w-0 overflow-y-auto max-h-[72vh] pl-1 space-y-3">
@@ -638,7 +638,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
         const successors   = findSuccessors(tooltip.task, tasks)
         return (
           <div className="fixed z-40 bg-gray-900 text-white text-sm rounded-lg px-3 py-2" dir="rtl"
-            style={{ left: tooltip.x + 10, top: tooltip.y - 70, maxWidth: 340 }}>
+            style={{ left: tooltip.x + 10, top: tooltip.y - 70, maxWidth: 340, zoom: uiScale }}>
             <button onClick={() => setTooltip(null)} className="absolute top-1 left-1.5 text-gray-400 hover:text-white text-xs leading-none">✕</button>
             <div className="font-bold text-base flex items-center gap-2">
               {tooltip.task.name}
@@ -931,7 +931,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
         })}
       </svg>
 
-      <div style={{ padding: '8px 16px', borderTop: '1px solid #E5E7EB', background: '#FAFAFA', display: 'flex', gap: 20, alignItems: 'center', direction: 'rtl' }}>
+      <div style={{ padding: '8px 16px', borderTop: '1px solid #E5E7EB', background: '#FAFAFA', display: 'flex', gap: 20, alignItems: 'center', direction: 'rtl', zoom: uiScale }}>
         <span style={{ fontSize: fs(16), color: '#666' }}>אגדה:</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: fs(16), color: '#333' }}>
           <span style={{ display: 'inline-block', width: 20, height: 14, background: '#E8F0FF', border: '1px solid #4472C4', borderRadius: 2 }} />חגים יהודיים
