@@ -101,9 +101,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const [earlyCompletionPrompt, setEarlyCompletionPrompt] = useState<{ onYes: () => void; onNo: () => void } | null>(null)
   const [excludedFromCascade, setExcludedFromCascade] = useState<Set<string>>(new Set())
   const [zoom, setZoom]               = useState(1)
-  const [textScale, setTextScale]     = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem('gantt-text-scale') || '1') || 1 } catch { return 1 }
-  })
+
 
   const [labelVisible, setLabelVisible] = useState(true)
   const zoomScrollAdj = useRef<{ worldX: number; mouseX: number; ratio: number } | null>(null)
@@ -148,7 +146,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     return { MONTHS: months, WEEK_MONDAYS: mondays, years: Array.from(yearSet).sort() }
   }, [tasks])
 
-  useEffect(() => { try { localStorage.setItem('gantt-text-scale', String(textScale)) } catch {} }, [textScale])
+
 
 
   useEffect(() => {
@@ -273,7 +271,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const jewishBands = buildHolidayBands(JEWISH_HOLIDAYS)
   const muslimBands = buildHolidayBands(MUSLIM_HOLIDAYS)
 
-  const fs = (n: number) => Math.round(n * textScale)
+  const fs = (n: number) => n
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -293,16 +291,6 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           <button onClick={() => setZoom(z => Math.min(3, parseFloat((z + 0.2).toFixed(1))))}
             className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 text-base font-bold">+</button>
           <button onClick={() => setZoom(1)}
-            className="text-base text-gray-500 hover:text-gray-800 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50 ms-1">איפוס</button>
-        </div>
-        <div className="flex items-center gap-1 border-s border-gray-200 ps-3">
-          <span className="text-sm text-gray-500 ms-1">מלל SVG</span>
-          <button onClick={() => setTextScale(s => Math.max(0.5, parseFloat((s - 0.1).toFixed(1))))}
-            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 font-bold text-base" title="הקטן מלל SVG">א−</button>
-          <span className="text-base text-gray-600 w-12 text-center">{Math.round(textScale * 100)}%</span>
-          <button onClick={() => setTextScale(s => Math.min(2, parseFloat((s + 0.1).toFixed(1))))}
-            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 font-bold text-base" title="הגדל מלל SVG">א+</button>
-          <button onClick={() => setTextScale(1)}
             className="text-base text-gray-500 hover:text-gray-800 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50 ms-1">איפוס</button>
         </div>
       </div>
