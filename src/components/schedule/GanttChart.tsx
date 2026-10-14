@@ -354,10 +354,10 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
 
         return (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" onClick={() => setEditTask(null)}>
-            <div className="bg-white rounded-xl shadow-2xl w-[500px] max-w-[95vw] max-h-[90vh] flex flex-col" dir="rtl" style={{ zoom: uiScale }} onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-2xl w-[1100px] max-w-[95vw] max-h-[90vh] flex flex-col" dir="rtl" style={{ zoom: uiScale }} onClick={e => e.stopPropagation()}>
               <h3 className="text-xl font-bold text-[#1F3864] px-6 pt-6">עריכת משימה</h3>
               <div className="flex gap-4 px-6 py-4 flex-1 min-h-0">
-                <div className="flex-1 min-w-0 overflow-y-auto max-h-[72vh] pl-1 space-y-3">
+                <div className="flex-1 min-w-0 overflow-y-auto max-h-[72vh] pe-4 border-e border-gray-200 space-y-3">
 
                   <div className="mb-3">
                     <label className="block text-sm font-semibold text-blue-700 mb-1">◀ פעילות קדם (מתחיל אחרי)</label>
@@ -466,7 +466,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                   </div>
                 </div>
 
-                <div className="hidden">
+                <div className="w-80 flex-shrink-0 overflow-y-auto max-h-[72vh] ps-4 space-y-3">
                   <div>
                     {editTask.phase === 'הרכבה ק.מ חולף' && editTask.building && editTask.facade ? (
                       <FacadeView building={editTask.building} facade={editTask.facade} subStage={editTask.subStage} canEdit={canEdit} />

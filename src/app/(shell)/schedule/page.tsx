@@ -269,12 +269,8 @@ export default function SchedulePage() {
     if (!projectId) return
     setSending(true)
     try {
-      const res = await fetch('/api/schedule/send-update', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, changes: pendingChanges })
-      })
-      const data = await res.json()
-      if (data.success) { setPendingChanges([]); alert(`✅ עדכון נשלח בהצלחה ל-${data.sent} נמענים`) }
-      else alert(`שגיאה: ${data.error}`)
+      await loadData(projectId)
+      setLastSaved(new Date().toLocaleTimeString('he-IL'))
     } finally { setSending(false) }
   }
 
@@ -405,7 +401,7 @@ export default function SchedulePage() {
         <button onClick={sendUpdate} disabled={sending}
           className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium"
           style={{ background: sending ? '#555' : '#00B050', color: 'white' }}>
-          {sending ? '⏳ שולח...' : '📧 עדכן ושלח'}
+          {sending ? '⏳ מעדכן...' : '🔄 עדכון'}
         </button>
         {canViewReports && !isLogisticsProject && <FinanceNav />}
         {isLogisticsProject && (
