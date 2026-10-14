@@ -44,6 +44,7 @@ const HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','
 
 const COL_WIDTH   = 90
 const ROW_HEIGHT  = 84
+const BAR_HEIGHT  = 24
 const LABEL_WIDTH = 380
 const YEAR_H      = 39
 const MONTH_H     = 36
@@ -103,9 +104,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const [textScale, setTextScale]     = useState<number>(() => {
     try { return parseFloat(localStorage.getItem('gantt-text-scale') || '1') || 1 } catch { return 1 }
   })
-  const [uiScale, setUiScale]         = useState<number>(() => {
-    try { return parseFloat(localStorage.getItem('gantt-ui-scale') || '1') || 1 } catch { return 1 }
-  })
+
   const [labelVisible, setLabelVisible] = useState(true)
   const zoomScrollAdj = useRef<{ worldX: number; mouseX: number; ratio: number } | null>(null)
   const scrollRef     = useRef<HTMLDivElement>(null)
@@ -150,7 +149,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   }, [tasks])
 
   useEffect(() => { try { localStorage.setItem('gantt-text-scale', String(textScale)) } catch {} }, [textScale])
-  useEffect(() => { try { localStorage.setItem('gantt-ui-scale', String(uiScale)) } catch {} }, [uiScale])
+
 
   useEffect(() => {
     const el = scrollRef.current
@@ -279,7 +278,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Gantt toolbar */}
-      <div className="flex items-center gap-3 px-3 py-1.5 border border-gray-200 rounded-t-lg bg-white" style={{ direction: 'rtl', zoom: uiScale }}>
+      <div className="flex items-center gap-3 px-3 py-1.5 border border-gray-200 rounded-t-lg bg-white" style={{ direction: 'rtl' }}>
         <button
           onClick={() => setLabelVisible(v => !v)}
           className="flex items-center gap-1.5 text-base text-gray-600 hover:text-gray-900 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50"
@@ -304,16 +303,6 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           <button onClick={() => setTextScale(s => Math.min(2, parseFloat((s + 0.1).toFixed(1))))}
             className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 font-bold text-base" title="הגדל מלל SVG">א+</button>
           <button onClick={() => setTextScale(1)}
-            className="text-base text-gray-500 hover:text-gray-800 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50 ms-1">איפוס</button>
-        </div>
-        <div className="flex items-center gap-1 border-s border-gray-200 ps-3">
-          <span className="text-sm text-gray-500 ms-1">ממשק</span>
-          <button onClick={() => setUiScale(s => Math.max(0.5, parseFloat((s - 0.1).toFixed(1))))}
-            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 font-bold text-base" title="הקטן ממשק">−</button>
-          <span className="text-base text-gray-600 w-12 text-center">{Math.round(uiScale * 100)}%</span>
-          <button onClick={() => setUiScale(s => Math.min(2, parseFloat((s + 0.1).toFixed(1))))}
-            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 font-bold text-base" title="הגדל ממשק">+</button>
-          <button onClick={() => setUiScale(1)}
             className="text-base text-gray-500 hover:text-gray-800 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50 ms-1">איפוס</button>
         </div>
       </div>
@@ -354,7 +343,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
 
         return (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" onClick={() => setEditTask(null)}>
-            <div className="bg-white rounded-xl shadow-2xl w-[1100px] max-w-[95vw] max-h-[90vh] flex flex-col" dir="rtl" style={{ zoom: uiScale }} onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-2xl w-[1100px] max-w-[95vw] max-h-[90vh] flex flex-col" dir="rtl" onClick={e => e.stopPropagation()}>
               <h3 className="text-xl font-bold text-[#1F3864] px-6 pt-6">עריכת משימה</h3>
               <div className="flex gap-4 px-6 py-4 flex-1 min-h-0">
                 <div className="flex-1 min-w-0 overflow-y-auto max-h-[72vh] pe-4 border-e border-gray-200 space-y-3">
@@ -638,7 +627,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
         const successors   = findSuccessors(tooltip.task, tasks)
         return (
           <div className="fixed z-40 bg-gray-900 text-white text-sm rounded-lg px-3 py-2" dir="rtl"
-            style={{ left: tooltip.x + 10, top: tooltip.y - 70, maxWidth: 340, zoom: uiScale }}>
+            style={{ left: tooltip.x + 10, top: tooltip.y - 70, maxWidth: 340 }}>
             <button onClick={() => setTooltip(null)} className="absolute top-1 left-1.5 text-gray-400 hover:text-white text-xs leading-none">✕</button>
             <div className="font-bold text-base flex items-center gap-2">
               {tooltip.task.name}
@@ -736,14 +725,14 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                 const { x: bx, width: bw } = getBarStyle({ startDate: bl.startDate, endDate: bl.endDate })
                 return <rect x={bx} y={y + 2} width={bw} height={4} fill="#888" opacity={0.7} rx={1} pointerEvents="none" />
               })()}
-              <rect x={x} y={y + 8} width={width} height={ROW_HEIGHT - 16} rx={4} fill={barColor} opacity={0.85}
+              <rect x={x} y={y + (ROW_HEIGHT - BAR_HEIGHT) / 2} width={width} height={BAR_HEIGHT} rx={4} fill={barColor} opacity={0.85}
                 className={canEdit ? 'cursor-pointer' : 'cursor-default'}
                 onClick={() => canEdit && (procurementOnly
                   ? setProcurementFocusTask(task)
                   : (setEditTask(task), setSuccStartOverrides({}), setSuccAdd([]), setSuccRemove([]), setSuccSearch('')))}
               />
-              {progressWidth > 0 && <rect x={x} y={y + 8} width={progressWidth} height={ROW_HEIGHT - 16} rx={4} fill={barColor} opacity={1} pointerEvents="none" />}
-              {task.progress > 0 && task.progress < 100 && <line x1={x + progressWidth} y1={y + 6} x2={x + progressWidth} y2={y + ROW_HEIGHT - 6} stroke="white" strokeWidth={2} />}
+              {progressWidth > 0 && <rect x={x} y={y + (ROW_HEIGHT - BAR_HEIGHT) / 2} width={progressWidth} height={BAR_HEIGHT} rx={4} fill={barColor} opacity={1} pointerEvents="none" />}
+              {task.progress > 0 && task.progress < 100 && <line x1={x + progressWidth} y1={y + (ROW_HEIGHT - BAR_HEIGHT) / 2 - 2} x2={x + progressWidth} y2={y + (ROW_HEIGHT + BAR_HEIGHT) / 2 + 2} stroke="white" strokeWidth={2} />}
               {isOverdue && <text x={x + width + 4} y={y + ROW_HEIGHT / 2 + 4} fontSize={fs(20)} pointerEvents="none">⚠️</text>}
               {isBlocked && <text x={x - 16} y={y + ROW_HEIGHT / 2 + 4} fontSize={fs(18)}>🔒<title>{`חסום — מחכה ל: ${incompletePreds.map(p => p.name).join(', ')}`}</title></text>}
               {(() => {
@@ -921,7 +910,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           const { x: bx, width: bw } = getBarStyle(task)
           const by = HEADER_HEIGHT + row.y
           return (
-            <rect key={`bar-click-${task.id}`} x={bx} y={by + 8} width={bw} height={ROW_HEIGHT - 16} rx={4}
+            <rect key={`bar-click-${task.id}`} x={bx} y={by + (ROW_HEIGHT - BAR_HEIGHT) / 2} width={bw} height={BAR_HEIGHT} rx={4}
               fill="transparent" pointerEvents="all" style={{ cursor: 'pointer' }}
               onClick={() => {
                 if (procurementOnly) { setProcurementFocusTask(task) }
@@ -931,7 +920,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
         })}
       </svg>
 
-      <div style={{ padding: '8px 16px', borderTop: '1px solid #E5E7EB', background: '#FAFAFA', display: 'flex', gap: 20, alignItems: 'center', direction: 'rtl', zoom: uiScale }}>
+      <div style={{ padding: '8px 16px', borderTop: '1px solid #E5E7EB', background: '#FAFAFA', display: 'flex', gap: 20, alignItems: 'center', direction: 'rtl' }}>
         <span style={{ fontSize: fs(16), color: '#666' }}>אגדה:</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: fs(16), color: '#333' }}>
           <span style={{ display: 'inline-block', width: 20, height: 14, background: '#E8F0FF', border: '1px solid #4472C4', borderRadius: 2 }} />חגים יהודיים
