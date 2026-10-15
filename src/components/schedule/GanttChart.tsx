@@ -907,13 +907,13 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                 )}
                 {(task.stage || task.subStage || task.building) ? (
                   <>
-                    <text x={20} y={y + 52} fill="#145a8c" fontSize={fs(18)} fontFamily="Arial">
+                    <text x={20} y={y + 52} fill="#145a8c" fontSize={fs(18)} fontFamily="Arial" direction="rtl" textAnchor="end">
                       {[task.stage ? `שלב ${task.stage}` : null, task.subStage ? `תת ${task.subStage}` : null,
                         task.building ? `בניין ${task.building}` : null, task.facade || null,
                         task.floors ? `ק׳ ${task.floors}` : null,
                         task.cost != null ? `₪${task.cost.toLocaleString('he-IL')}` : null].filter(Boolean).join(' | ')}
                     </text>
-                    <text x={20} y={y + 74} fill="#555" fontSize={fs(18)} fontFamily="Arial">
+                    <text x={20} y={y + 74} fill="#555" fontSize={fs(18)} fontFamily="Arial" direction="rtl" textAnchor="end">
                       {task.phase === 'חלוקת פיגומים'
                         ? (task.notes || '')
                         : [task.scaffoldingNum ? `פיגום ${task.scaffoldingNum}` : null,
