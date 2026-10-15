@@ -101,6 +101,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const [earlyCompletionPrompt, setEarlyCompletionPrompt] = useState<{ onYes: () => void; onNo: () => void } | null>(null)
   const [excludedFromCascade, setExcludedFromCascade] = useState<Set<string>>(new Set())
   const [zoom, setZoom]               = useState(1)
+  const [viewMode, setViewMode]       = useState<'gantt' | 'list'>('gantt')
 
 
   const [labelVisible, setLabelVisible] = useState(true)
@@ -277,24 +278,80 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     <div className="flex flex-col flex-1 min-h-0">
       {/* Gantt toolbar */}
       <div className="flex items-center gap-3 px-3 py-1.5 border border-gray-200 rounded-t-lg bg-white" style={{ direction: 'rtl' }}>
-        <button
-          onClick={() => setLabelVisible(v => !v)}
-          className="flex items-center gap-1.5 text-base text-gray-600 hover:text-gray-900 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50"
-          title={labelVisible ? 'הסתר עמודת תוויות' : 'הצג עמודת תוויות'}
-        >
-          {labelVisible ? '◀◀ הסתר תוויות' : '▶▶ הצג תוויות'}
-        </button>
-        <div className="flex items-center gap-1 me-auto">
-          <button onClick={() => setZoom(z => Math.max(0.2, parseFloat((z - 0.2).toFixed(1))))}
-            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 text-base font-bold">−</button>
-          <span className="text-base text-gray-600 w-12 text-center">{Math.round(zoom * 100)}%</span>
-          <button onClick={() => setZoom(z => Math.min(3, parseFloat((z + 0.2).toFixed(1))))}
-            className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 text-base font-bold">+</button>
-          <button onClick={() => setZoom(1)}
-            className="text-base text-gray-500 hover:text-gray-800 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50 ms-1">איפוס</button>
+        <div className="flex items-center border border-gray-200 rounded overflow-hidden">
+          <button onClick={() => setViewMode('gantt')} className={`px-3 py-1 text-sm transition-colors ${viewMode === 'gantt' ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>גאנט</button>
+          <button onClick={() => setViewMode('list')} className={`px-3 py-1 text-sm transition-colors border-s border-gray-200 ${viewMode === 'list' ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>רשימה לפי תאריך</button>
         </div>
+        {viewMode === 'gantt' && (
+          <button
+            onClick={() => setLabelVisible(v => !v)}
+            className="flex items-center gap-1.5 text-base text-gray-600 hover:text-gray-900 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50"
+            title={labelVisible ? 'הסתר עמודת תוויות' : 'הצג עמודת תוויות'}
+          >
+            {labelVisible ? '◀◀ הסתר תוויות' : '▶▶ הצג תוויות'}
+          </button>
+        )}
+        {viewMode === 'gantt' && (
+          <div className="flex items-center gap-1 me-auto">
+            <button onClick={() => setZoom(z => Math.max(0.2, parseFloat((z - 0.2).toFixed(1))))}
+              className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 text-base font-bold">−</button>
+            <span className="text-base text-gray-600 w-12 text-center">{Math.round(zoom * 100)}%</span>
+            <button onClick={() => setZoom(z => Math.min(3, parseFloat((z + 0.2).toFixed(1))))}
+              className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 text-base font-bold">+</button>
+            <button onClick={() => setZoom(1)}
+              className="text-base text-gray-500 hover:text-gray-800 border border-gray-300 rounded px-2 py-1 hover:bg-gray-50 ms-1">איפוס</button>
+          </div>
+        )}
       </div>
-    <div
+    {viewMode === 'list' && (() => {
+      const fmtDate = (s: string) => { const d = new Date(s); return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}` }
+      const sorted = [...tasks].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+      return (
+        <div className="border border-t-0 border-gray-200 rounded-b-lg flex-1 min-h-0 overflow-y-auto bg-white" dir="rtl">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-white border-b border-gray-200 z-10">
+              <tr>
+                <th className="py-2 px-3 text-right text-gray-500 font-medium w-12">#</th>
+                <th className="py-2 px-3 text-right text-gray-500 font-medium">שם פעולה</th>
+                <th className="py-2 px-3 text-right text-gray-500 font-medium">שלב</th>
+                <th className="py-2 px-3 text-right text-gray-500 font-medium">קומות/חזית</th>
+                <th className="py-2 px-3 text-right text-gray-500 font-medium">התחלה</th>
+                <th className="py-2 px-3 text-right text-gray-500 font-medium">סיום</th>
+                <th className="py-2 px-3 text-right text-gray-500 font-medium w-28">התקדמות</th>
+                <th className="py-2 px-3 text-right text-gray-500 font-medium">אחראי</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((task, idx) => {
+                const num = taskSerialNumbers?.[task.id] ?? idx + 1
+                const overdue = task.progress < 100 && new Date(task.endDate) < new Date()
+                return (
+                  <tr key={task.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => { if (!procurementOnly) { setEditTask(task); setSuccStartOverrides({}); setSuccAdd([]); setSuccRemove([]); setSuccSearch('') } }}>
+                    <td className="py-2.5 px-3 text-gray-400 text-xs text-center">{num}</td>
+                    <td className="py-2.5 px-3 font-medium text-gray-900">{task.name}</td>
+                    <td className="py-2.5 px-3 text-gray-600 text-xs">{[task.stage, task.subStage].filter(Boolean).join(' | ')}</td>
+                    <td className="py-2.5 px-3 text-gray-600 text-xs">{[task.building, task.facade, task.floors].filter(Boolean).join(' | ')}</td>
+                    <td className={`py-2.5 px-3 text-xs tabular-nums ${overdue ? 'text-red-600' : 'text-gray-700'}`}>{fmtDate(task.startDate)}</td>
+                    <td className={`py-2.5 px-3 text-xs tabular-nums ${overdue ? 'text-red-600 font-medium' : 'text-gray-700'}`}>{fmtDate(task.endDate)}</td>
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+                          <div className="h-1.5 rounded-full" style={{ width: `${task.progress}%`, backgroundColor: task.color || '#4472C4' }} />
+                        </div>
+                        <span className="text-xs text-gray-500 w-8 text-left">{task.progress}%</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 text-gray-600 text-xs">{task.responsible}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {sorted.length === 0 && <div className="text-center py-12 text-gray-400">אין פעולות להצגה</div>}
+        </div>
+      )
+    })()}
+    {viewMode === 'gantt' && <div
       ref={scrollRef}
       className="relative border border-t-0 border-gray-200 rounded-b-lg shadow flex-1 min-h-0"
       style={{ direction: 'ltr', overflowX: 'scroll', overflowY: 'auto' }}
@@ -923,7 +980,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           </label>
         )}
       </div>
-    </div>
+    </div>}
     </div>
   )
 }
