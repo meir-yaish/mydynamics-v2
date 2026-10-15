@@ -4,8 +4,9 @@ import { auth } from '@/lib/auth'
 
 function taskGroupOrder(name: string, phase: string): number {
   if (phase === 'שלד' || name.includes('שלד אלומיניום')) return 10
+  if (phase === 'הרכבה ק.מ חולף' && !name.startsWith('גמר סיליקון')) return 20
   if (name.startsWith('גמר סיליקון')) return 30
-  if (phase === 'הרכבה ק.מ חולף') return 20
+  if (phase === 'הרכבה בולנוז' || /^B-\d+/.test(name)) return 40
   return 0
 }
 

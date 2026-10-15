@@ -327,21 +327,21 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                 const overdue = task.progress < 100 && new Date(task.endDate) < new Date()
                 return (
                   <tr key={task.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => { if (!procurementOnly) { setEditTask(task); setSuccStartOverrides({}); setSuccAdd([]); setSuccRemove([]); setSuccSearch('') } }}>
-                    <td className="py-2.5 px-3 text-gray-400 text-xs text-center">{num}</td>
+                    <td className="py-2.5 px-3 text-gray-400 text-center">{num}</td>
                     <td className="py-2.5 px-3 font-medium text-gray-900">{task.name}</td>
-                    <td className="py-2.5 px-3 text-gray-600 text-xs">{[task.stage, task.subStage].filter(Boolean).join(' | ')}</td>
-                    <td className="py-2.5 px-3 text-gray-600 text-xs">{[task.building, task.facade, task.floors].filter(Boolean).join(' | ')}</td>
-                    <td className={`py-2.5 px-3 text-xs tabular-nums ${overdue ? 'text-red-600' : 'text-gray-700'}`}>{fmtDate(task.startDate)}</td>
-                    <td className={`py-2.5 px-3 text-xs tabular-nums ${overdue ? 'text-red-600 font-medium' : 'text-gray-700'}`}>{fmtDate(task.endDate)}</td>
+                    <td className="py-2.5 px-3 text-gray-600">{[task.stage, task.subStage].filter(Boolean).join(' | ')}</td>
+                    <td className="py-2.5 px-3 text-gray-600">{[task.building, task.facade, task.floors].filter(Boolean).join(' | ')}</td>
+                    <td className={`py-2.5 px-3 tabular-nums ${overdue ? 'text-red-600' : 'text-gray-700'}`}>{fmtDate(task.startDate)}</td>
+                    <td className={`py-2.5 px-3 tabular-nums ${overdue ? 'text-red-600 font-medium' : 'text-gray-700'}`}>{fmtDate(task.endDate)}</td>
                     <td className="py-2.5 px-3">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-gray-100 rounded-full h-1.5">
                           <div className="h-1.5 rounded-full" style={{ width: `${task.progress}%`, backgroundColor: task.color || '#4472C4' }} />
                         </div>
-                        <span className="text-xs text-gray-500 w-8 text-left">{task.progress}%</span>
+                        <span className="text-gray-500 w-8 text-left">{task.progress}%</span>
                       </div>
                     </td>
-                    <td className="py-2.5 px-3 text-gray-600 text-xs">{task.responsible}</td>
+                    <td className="py-2.5 px-3 text-gray-600">{task.responsible}</td>
                   </tr>
                 )
               })}
