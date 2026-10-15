@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get('projectId')
   const tasks = await prisma.task.findMany({
     where: projectId ? { projectId } : {},
-    orderBy: { order: 'asc' },
+    orderBy: [{ startDate: 'asc' }, { order: 'asc' }],
     include: { changes: { orderBy: { changedAt: 'desc' }, take: 5 } }
   })
   return NextResponse.json(tasks)
