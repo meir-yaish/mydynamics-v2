@@ -894,11 +894,11 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                   ? <rect x={0} y={y} width={5} height={ROW_HEIGHT} fill="#1F3864" />
                   : labelOverdue && <rect x={0} y={y} width={4} height={ROW_HEIGHT} fill="#C00000" />
                 }
-                <text x={54} y={y + 20} textAnchor="end" fill={labelOverdue ? '#C00000' : '#999'} fontSize={fs(12)} fontFamily="Arial" fontWeight="bold">{num}</text>
-                <text x={12} y={y + 20} fontSize={fs(16)} fill="#1F78C1" fontWeight="bold" fontFamily="Arial" textAnchor="middle"
+                <text x={54} y={y + 20} textAnchor="end" fill={labelOverdue ? '#C00000' : '#999'} fontSize={fs(14)} fontFamily="Arial">{num}</text>
+                <text x={12} y={y + 20} fontSize={fs(14)} fill="#1F78C1" fontFamily="Arial" textAnchor="middle"
                   className="cursor-pointer"
                   onClick={e => { e.stopPropagation(); setTooltip(prev => prev?.task.id === task.id ? null : { task, x: e.clientX, y: e.clientY }) }}>ⓘ</text>
-                <text x={60} y={y + 20} fill={labelOverdue ? '#C00000' : '#222'} fontSize={fs(14)} fontWeight="600" fontFamily="Arial">{task.name}</text>
+                <text x={60} y={y + 20} fill={labelOverdue ? '#C00000' : '#222'} fontSize={fs(14)} fontFamily="Arial">{task.name}</text>
                 {task.sdPhase && labelW > 60 && (
                   <>
                     <rect x={labelW - 50} y={y + 4} width={44} height={18} rx={4} fill="#EEF2FF" />
@@ -907,13 +907,13 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                 )}
                 {(task.stage || task.subStage || task.building) ? (
                   <>
-                    <text x={20} y={y + 35} fill="#145a8c" fontSize={fs(12)} fontFamily="Arial" direction="rtl" textAnchor="end">
+                    <text x={20} y={y + 35} fill="#145a8c" fontSize={fs(14)} fontFamily="Arial" direction="rtl" textAnchor="end">
                       {[task.stage ? `שלב ${task.stage}` : null, task.subStage ? `תת ${task.subStage}` : null,
                         task.building ? `בניין ${task.building}` : null, task.facade || null,
                         task.floors ? `ק׳ ${task.floors}` : null,
                         task.cost != null ? `₪${task.cost.toLocaleString('he-IL')}` : null].filter(Boolean).join(' | ')}
                     </text>
-                    <text x={20} y={y + 49} fill="#555" fontSize={fs(12)} fontFamily="Arial" direction="rtl" textAnchor="end">
+                    <text x={20} y={y + 49} fill="#555" fontSize={fs(14)} fontFamily="Arial" direction="rtl" textAnchor="end">
                       {task.phase === 'חלוקת פיגומים'
                         ? (task.notes || '')
                         : [task.scaffoldingNum ? `פיגום ${task.scaffoldingNum}` : null,
@@ -925,9 +925,9 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                   const preds = findPredecessors(task, tasks)
                   return (
                     <>
-                      <text x={20} y={y + 35} fill="#555" fontSize={fs(12)} fontFamily="Arial">{task.responsible}</text>
+                      <text x={20} y={y + 35} fill="#555" fontSize={fs(14)} fontFamily="Arial">{task.responsible}</text>
                       {preds.length > 0 && (
-                        <text x={20} y={y + 49} fill="#145a8c" fontSize={fs(11)} fontFamily="Arial">{`▶ ${preds.map(p => p.name).join(' + ')}`}</text>
+                        <text x={20} y={y + 49} fill="#145a8c" fontSize={fs(14)} fontFamily="Arial">{`▶ ${preds.map(p => p.name).join(' + ')}`}</text>
                       )}
                     </>
                   )
