@@ -107,6 +107,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const [labelVisible, setLabelVisible] = useState(true)
   const zoomScrollAdj = useRef<{ worldX: number; mouseX: number; ratio: number } | null>(null)
   const scrollRef     = useRef<HTMLDivElement>(null)
+  const labelWRef     = useRef(0)
   const timelineHRef  = useRef<SVGGElement>(null)
   const labelsColRef  = useRef<SVGGElement>(null)
   const cornerRef     = useRef<SVGGElement>(null)
@@ -156,11 +157,14 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     function onScroll() {
       const st = el!.scrollTop
       const sl = el!.scrollLeft
+      const cw = el!.clientWidth
+      const lx = sl + cw - labelWRef.current
       timelineHRef.current?.setAttribute('transform', `translate(0,${st})`)
-      labelsColRef.current?.setAttribute('transform',  `translate(${sl},0)`)
-      cornerRef.current?.setAttribute('transform',     `translate(${sl},${st})`)
+      labelsColRef.current?.setAttribute('transform',  `translate(${lx},0)`)
+      cornerRef.current?.setAttribute('transform',     `translate(${lx},${st})`)
       todayLabelRef.current?.setAttribute('transform', `translate(0,${st})`)
     }
+    onScroll()
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
   }, [])
@@ -187,6 +191,8 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
 
   const colW   = Math.max(20, Math.round(COL_WIDTH * zoom))
   const labelW = labelVisible ? LABEL_WIDTH : 0
+  labelWRef.current = labelW
+  const timelineW = MONTHS.length * colW
   useLayoutEffect(() => {
     const adj = zoomScrollAdj.current
     if (!adj || !scrollRef.current) return
@@ -194,7 +200,15 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     scrollRef.current.scrollLeft = adj.worldX * adj.ratio - adj.mouseX
   }, [zoom])
 
-  const totalWidth = labelW + MONTHS.length * colW
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const lx = el.scrollLeft + el.clientWidth - labelWRef.current
+    labelsColRef.current?.setAttribute('transform', `translate(${lx},0)`)
+    cornerRef.current?.setAttribute('transform',    `translate(${lx},${el.scrollTop})`)
+  }, [labelVisible, zoom])
+
+  const totalWidth = timelineW
   const phases = [...new Set(tasks.map(t => t.phase))]
 
   function getBarStyle(task: Pick<Task, 'startDate' | 'endDate'>) {
@@ -203,7 +217,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     const totalDays    = differenceInDays(projectEnd, projectStart)
     const startOffset  = Math.max(0, differenceInDays(new Date(task.startDate), projectStart))
     const duration     = Math.max(1, differenceInDays(new Date(task.endDate), new Date(task.startDate)))
-    const x     = labelW + (startOffset / totalDays) * (MONTHS.length * colW)
+    const x     = (startOffset / totalDays) * (MONTHS.length * colW)
     const width = Math.max(4, (duration  / totalDays) * (MONTHS.length * colW))
     return { x, width }
   }
@@ -213,7 +227,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     const projectEnd   = addMonths(MONTHS[MONTHS.length - 1], 1)
     const totalDays    = differenceInDays(projectEnd, projectStart)
     const offset       = differenceInDays(date, projectStart)
-    return labelW + (offset / totalDays) * (MONTHS.length * colW)
+    return (offset / totalDays) * (MONTHS.length * colW)
   }
 
   const groupedTasks: { phase: string; tasks: Task[] }[] = phases.map(phase => ({
@@ -734,7 +748,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             return (
               <g key={`phase-${i}`}>
                 <rect x={0} y={y} width={totalWidth} height={ROW_HEIGHT} fill="#E8E8E8" />
-                {MONTHS.map((_, mi) => <line key={mi} x1={labelW + mi * colW} y1={y} x2={labelW + mi * colW} y2={y + ROW_HEIGHT} stroke="#CCC" strokeWidth={0.5} />)}
+                {MONTHS.map((_, mi) => <line key={mi} x1={mi * colW} y1={y} x2={mi * colW} y2={y + ROW_HEIGHT} stroke="#CCC" strokeWidth={0.5} />)}
                 {weekLineXs.map((wx, wi) => <line key={wi} x1={wx} y1={y} x2={wx} y2={y + ROW_HEIGHT} stroke="#DDD" strokeWidth={0.3} />)}
               </g>
             )
@@ -817,7 +831,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           const totalDays    = differenceInDays(projectEnd, projectStart)
           const todayOffset  = differenceInDays(new Date(), projectStart)
           if (todayOffset < 0 || todayOffset > totalDays) return null
-          const tx = labelW + (todayOffset / totalDays) * (MONTHS.length * colW)
+          const tx = (todayOffset / totalDays) * (MONTHS.length * colW)
           return (
             <g>
               <line x1={tx} y1={HEADER_HEIGHT} x2={tx} y2={totalHeight} stroke="#FF4444" strokeWidth={2} strokeDasharray="4,3" />
@@ -830,14 +844,14 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
         })()}
 
         <g ref={timelineHRef}>
-          <rect x={labelW} y={0} width={totalWidth - labelW} height={HEADER_HEIGHT} fill="white" />
+          <rect x={0} y={0} width={totalWidth} height={HEADER_HEIGHT} fill="white" />
           {jewishBands.map((b, i) => <rect key={`jhh-${i}`} x={b.x} y={YEAR_H + MONTH_H} width={b.width} height={WEEK_H} fill="#4472C4" opacity={0.35} />)}
           {muslimBands.map((b, i) => <rect key={`mhh-${i}`} x={b.x} y={YEAR_H + MONTH_H} width={b.width} height={WEEK_H} fill="#2E7D32" opacity={0.40} />)}
           {years.map(year => {
             const yearMonths = MONTHS.filter(m => m.getFullYear() === year)
             if (!yearMonths.length) return null
             const startIdx = MONTHS.findIndex(m => m.getFullYear() === year)
-            const x = labelW + startIdx * colW
+            const x = startIdx * colW
             const w = yearMonths.length * colW
             return <g key={year}>
               <rect x={x} y={0} width={w} height={YEAR_H} fill="#111111" />
@@ -846,8 +860,8 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           })}
           {MONTHS.map((month, i) => (
             <g key={i}>
-              <rect x={labelW + i * colW} y={YEAR_H} width={colW} height={MONTH_H} fill={i % 2 === 0 ? '#2a2a2a' : '#1a1a1a'} />
-              <text x={labelW + i * colW + colW / 2} y={YEAR_H + 24} textAnchor="middle" fill="white" fontSize={fs(12)} fontFamily="Arial">
+              <rect x={i * colW} y={YEAR_H} width={colW} height={MONTH_H} fill={i % 2 === 0 ? '#2a2a2a' : '#1a1a1a'} />
+              <text x={i * colW + colW / 2} y={YEAR_H + 24} textAnchor="middle" fill="white" fontSize={fs(12)} fontFamily="Arial">
                 {HEB_MONTHS[month.getMonth()].slice(0, 3)}
               </text>
             </g>
