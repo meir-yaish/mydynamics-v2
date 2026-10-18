@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth'
 function taskGroupOrder(name: string, phase: string): number {
   if (phase === 'תיכנון') return 10
   if (phase === 'שרשרת ספקה') return 20
-  if (phase === 'הוראות יצור') return 30
+  if (phase === 'הוראות ייצור') return 30
   if (phase === 'שלד') return 40
   if (phase === 'מעקות') return 50
   if (name.includes('שלד אלומיניום')) return 61
