@@ -105,9 +105,10 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
 
 
   const [labelVisible, setLabelVisible] = useState(true)
-  const zoomScrollAdj = useRef<{ worldX: number; mouseX: number; ratio: number } | null>(null)
-  const scrollRef     = useRef<HTMLDivElement>(null)
-  const labelWRef     = useRef(0)
+  const zoomScrollAdj    = useRef<{ worldX: number; mouseX: number; ratio: number } | null>(null)
+  const hasInitialScroll = useRef(false)
+  const scrollRef        = useRef<HTMLDivElement>(null)
+  const labelWRef        = useRef(0)
   const timelineHRef  = useRef<SVGGElement>(null)
   const labelsColRef  = useRef<SVGGElement>(null)
   const cornerRef     = useRef<SVGGElement>(null)
@@ -194,6 +195,18 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   labelWRef.current = labelW
   const timelineW = MONTHS.length * colW
   useLayoutEffect(() => {
+    if (hasInitialScroll.current || !scrollRef.current || MONTHS.length === 0) return
+    hasInitialScroll.current = true
+    const el = scrollRef.current
+    const projectStart = MONTHS[0]
+    const projectEnd   = addMonths(MONTHS[MONTHS.length - 1], 1)
+    const totalDays    = differenceInDays(projectEnd, projectStart)
+    const todayOffset  = differenceInDays(new Date(), projectStart)
+    const tx = timelineW - (todayOffset / totalDays) * timelineW
+    el.scrollLeft = Math.max(0, tx - (el.clientWidth - labelWRef.current) * 0.4)
+  }, [])
+
+  useLayoutEffect(() => {
     const adj = zoomScrollAdj.current
     if (!adj || !scrollRef.current) return
     zoomScrollAdj.current = null
@@ -208,7 +221,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     cornerRef.current?.setAttribute('transform',    `translate(${lx},${el.scrollTop})`)
   }, [labelVisible, zoom])
 
-  const totalWidth = timelineW
+  const totalWidth = timelineW + labelW
   const phases = [...new Set(tasks.map(t => t.phase))]
 
   function getBarStyle(task: Pick<Task, 'startDate' | 'endDate'>) {
@@ -217,8 +230,8 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     const totalDays    = differenceInDays(projectEnd, projectStart)
     const startOffset  = Math.max(0, differenceInDays(new Date(task.startDate), projectStart))
     const duration     = Math.max(1, differenceInDays(new Date(task.endDate), new Date(task.startDate)))
-    const x     = (startOffset / totalDays) * (MONTHS.length * colW)
-    const width = Math.max(4, (duration  / totalDays) * (MONTHS.length * colW))
+    const width = Math.max(4, (duration / totalDays) * timelineW)
+    const x     = timelineW - (startOffset / totalDays) * timelineW - width
     return { x, width }
   }
 
@@ -227,7 +240,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     const projectEnd   = addMonths(MONTHS[MONTHS.length - 1], 1)
     const totalDays    = differenceInDays(projectEnd, projectStart)
     const offset       = differenceInDays(date, projectStart)
-    return (offset / totalDays) * (MONTHS.length * colW)
+    return timelineW - (offset / totalDays) * timelineW
   }
 
   const groupedTasks: { phase: string; tasks: Task[] }[] = phases.map(phase => ({
@@ -275,9 +288,10 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
         if (gap <= 1) { end = new Date(next); end.setDate(end.getDate() + 1); i++ }
         else break
       }
-      const x = dateToX(start)
-      const w = dateToX(end) - x
-      if (w > 0) bands.push({ x, width: w })
+      const xS = dateToX(start)
+      const xE = dateToX(end)
+      const w = xS - xE
+      if (w > 0) bands.push({ x: xE, width: w })
       i++
     }
     return bands
@@ -748,7 +762,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             return (
               <g key={`phase-${i}`}>
                 <rect x={0} y={y} width={totalWidth} height={ROW_HEIGHT} fill="#E8E8E8" />
-                {MONTHS.map((_, mi) => <line key={mi} x1={mi * colW} y1={y} x2={mi * colW} y2={y + ROW_HEIGHT} stroke="#CCC" strokeWidth={0.5} />)}
+                {MONTHS.map((_, mi) => <line key={mi} x1={(MONTHS.length - 1 - mi) * colW} y1={y} x2={(MONTHS.length - 1 - mi) * colW} y2={y + ROW_HEIGHT} stroke="#CCC" strokeWidth={0.5} />)}
                 {weekLineXs.map((wx, wi) => <line key={wi} x1={wx} y1={y} x2={wx} y2={y + ROW_HEIGHT} stroke="#DDD" strokeWidth={0.3} />)}
               </g>
             )
@@ -772,11 +786,11 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
               />
               {isSelected && (
                 <>
-                  <line x1={LABEL_WIDTH} y1={y} x2={totalWidth} y2={y} stroke="#1F3864" strokeWidth={1.5} opacity={0.5} pointerEvents="none" />
-                  <line x1={LABEL_WIDTH} y1={y + ROW_HEIGHT} x2={totalWidth} y2={y + ROW_HEIGHT} stroke="#1F3864" strokeWidth={1.5} opacity={0.5} pointerEvents="none" />
+                  <line x1={0} y1={y} x2={totalWidth} y2={y} stroke="#1F3864" strokeWidth={1.5} opacity={0.5} pointerEvents="none" />
+                  <line x1={0} y1={y + ROW_HEIGHT} x2={totalWidth} y2={y + ROW_HEIGHT} stroke="#1F3864" strokeWidth={1.5} opacity={0.5} pointerEvents="none" />
                 </>
               )}
-              {MONTHS.map((_, mi) => <line key={mi} x1={LABEL_WIDTH + mi * COL_WIDTH} y1={y} x2={LABEL_WIDTH + mi * COL_WIDTH} y2={y + ROW_HEIGHT} stroke="#E8E8E8" strokeWidth={0.8} />)}
+              {MONTHS.map((_, mi) => <line key={mi} x1={(MONTHS.length - 1 - mi) * colW} y1={y} x2={(MONTHS.length - 1 - mi) * colW} y2={y + ROW_HEIGHT} stroke="#E8E8E8" strokeWidth={0.8} />)}
               {weekLineXs.map((wx, wi) => <line key={wi} x1={wx} y1={y} x2={wx} y2={y + ROW_HEIGHT} stroke="#F0F0F0" strokeWidth={0.5} />)}
               <line x1={0} y1={y + ROW_HEIGHT} x2={totalWidth} y2={y + ROW_HEIGHT} stroke="#EEE" strokeWidth={0.5} />
               {showBaseline && baselineByTaskId[task.id] && (() => {
@@ -790,18 +804,18 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                   ? setProcurementFocusTask(task)
                   : (setEditTask(task), setSuccStartOverrides({}), setSuccAdd([]), setSuccRemove([]), setSuccSearch('')))}
               />
-              {progressWidth > 0 && <rect x={x} y={y + (ROW_HEIGHT - BAR_HEIGHT) / 2} width={progressWidth} height={BAR_HEIGHT} rx={4} fill={barColor} opacity={1} pointerEvents="none" />}
-              {task.progress > 0 && task.progress < 100 && <line x1={x + progressWidth} y1={y + (ROW_HEIGHT - BAR_HEIGHT) / 2 - 2} x2={x + progressWidth} y2={y + (ROW_HEIGHT + BAR_HEIGHT) / 2 + 2} stroke="white" strokeWidth={2} />}
-              {isOverdue && <text x={x + width + 4} y={y + ROW_HEIGHT / 2 + 5} fontSize={fs(14)} pointerEvents="none">⚠️</text>}
-              {isBlocked && <text x={x - 14} y={y + ROW_HEIGHT / 2 + 5} fontSize={fs(14)}>🔒<title>{`חסום — מחכה ל: ${incompletePreds.map(p => p.name).join(', ')}`}</title></text>}
+              {progressWidth > 0 && <rect x={x + width - progressWidth} y={y + (ROW_HEIGHT - BAR_HEIGHT) / 2} width={progressWidth} height={BAR_HEIGHT} rx={4} fill={barColor} opacity={1} pointerEvents="none" />}
+              {task.progress > 0 && task.progress < 100 && <line x1={x + width - progressWidth} y1={y + (ROW_HEIGHT - BAR_HEIGHT) / 2 - 2} x2={x + width - progressWidth} y2={y + (ROW_HEIGHT + BAR_HEIGHT) / 2 + 2} stroke="white" strokeWidth={2} />}
+              {isOverdue && <text x={x - 4} y={y + ROW_HEIGHT / 2 + 5} textAnchor="end" fontSize={fs(14)} pointerEvents="none">⚠️</text>}
+              {isBlocked && <text x={x + width + 4} y={y + ROW_HEIGHT / 2 + 5} fontSize={fs(14)}>🔒<title>{`חסום — מחכה ל: ${incompletePreds.map(p => p.name).join(', ')}`}</title></text>}
               {(() => {
                 const sd = new Date(task.startDate)
                 const ed = new Date(task.endDate)
                 const midY = y + ROW_HEIGHT / 2 + 4
                 return (
                   <>
-                    <text x={x - 3} y={midY} textAnchor="end" fill="#333" fontSize={fs(12)} fontFamily="Arial" pointerEvents="none">{`${sd.getDate()}/${sd.getMonth() + 1}`}</text>
-                    <text x={x + width + 3} y={midY} textAnchor="start" fill="#333" fontSize={fs(12)} fontFamily="Arial" pointerEvents="none">{`${ed.getDate()}/${ed.getMonth() + 1}`}</text>
+                    <text x={x + width + 3} y={midY} textAnchor="start" fill="#333" fontSize={fs(12)} fontFamily="Arial" pointerEvents="none">{`${sd.getDate()}/${sd.getMonth() + 1}`}</text>
+                    <text x={x - 3} y={midY} textAnchor="end" fill="#333" fontSize={fs(12)} fontFamily="Arial" pointerEvents="none">{`${ed.getDate()}/${ed.getMonth() + 1}`}</text>
                   </>
                 )
               })()}
@@ -816,10 +830,10 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             const from = taskBarPos[depId]
             const to   = taskBarPos[task.id]
             if (!from || !to) return []
-            const x1 = from.x + from.width, y1 = from.midY
-            const x2 = to.x, y2 = to.midY
-            const cx1 = x1 + Math.min(40, Math.abs(x2 - x1) * 0.4)
-            const cx2 = x2 - Math.min(40, Math.abs(x2 - x1) * 0.4)
+            const x1 = from.x, y1 = from.midY
+            const x2 = to.x + to.width, y2 = to.midY
+            const cx1 = x1 - Math.min(40, Math.abs(x1 - x2) * 0.4)
+            const cx2 = x2 + Math.min(40, Math.abs(x1 - x2) * 0.4)
             return [<path key={`dep-${task.id}-${depId}-${di}`} d={`M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}`}
               fill="none" stroke="#888" strokeWidth={1} strokeDasharray="4,3" markerEnd="url(#arrow)" opacity={0.6} pointerEvents="none" />]
           })
@@ -831,7 +845,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           const totalDays    = differenceInDays(projectEnd, projectStart)
           const todayOffset  = differenceInDays(new Date(), projectStart)
           if (todayOffset < 0 || todayOffset > totalDays) return null
-          const tx = (todayOffset / totalDays) * (MONTHS.length * colW)
+          const tx = timelineW - (todayOffset / totalDays) * timelineW
           return (
             <g>
               <line x1={tx} y1={HEADER_HEIGHT} x2={tx} y2={totalHeight} stroke="#FF4444" strokeWidth={2} strokeDasharray="4,3" />
@@ -851,7 +865,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             const yearMonths = MONTHS.filter(m => m.getFullYear() === year)
             if (!yearMonths.length) return null
             const startIdx = MONTHS.findIndex(m => m.getFullYear() === year)
-            const x = startIdx * colW
+            const x = (MONTHS.length - startIdx - yearMonths.length) * colW
             const w = yearMonths.length * colW
             return <g key={year}>
               <rect x={x} y={0} width={w} height={YEAR_H} fill="#111111" />
@@ -860,16 +874,18 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           })}
           {MONTHS.map((month, i) => (
             <g key={i}>
-              <rect x={i * colW} y={YEAR_H} width={colW} height={MONTH_H} fill={i % 2 === 0 ? '#2a2a2a' : '#1a1a1a'} />
-              <text x={i * colW + colW / 2} y={YEAR_H + 24} textAnchor="middle" fill="white" fontSize={fs(12)} fontFamily="Arial">
+              <rect x={(MONTHS.length - 1 - i) * colW} y={YEAR_H} width={colW} height={MONTH_H} fill={i % 2 === 0 ? '#2a2a2a' : '#1a1a1a'} />
+              <text x={(MONTHS.length - 1 - i) * colW + colW / 2} y={YEAR_H + 24} textAnchor="middle" fill="white" fontSize={fs(12)} fontFamily="Arial">
                 {HEB_MONTHS[month.getMonth()].slice(0, 3)}
               </text>
             </g>
           ))}
           {WEEK_MONDAYS.map((monday, i) => {
-            const x = dateToX(monday)
             const nextMonday = WEEK_MONDAYS[i + 1] ?? new Date(monday.getTime() + 7 * 86400000)
-            const w = dateToX(nextMonday) - x
+            const xR = dateToX(monday)
+            const xL = dateToX(nextMonday)
+            const x = xL
+            const w = xR - xL
             if (w <= 0) return null
             const jan1 = new Date(monday.getFullYear(), 0, 1)
             const weekNum = Math.floor((monday.getTime() - jan1.getTime()) / (7 * 86400000)) + 1
