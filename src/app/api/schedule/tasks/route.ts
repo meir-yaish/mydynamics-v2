@@ -3,11 +3,20 @@ import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 
 function taskGroupOrder(name: string, phase: string): number {
-  if (phase === 'שלד' || name.includes('שלד אלומיניום')) return 10
-  if (phase === 'הרכבה ק.מ חולף' && !name.startsWith('גמר סיליקון')) return 20
-  if (name.startsWith('גמר סיליקון')) return 30
-  if (phase === 'הרכבה בולנוז' || /^B-\d+/.test(name)) return 40
-  return 0
+  if (phase === 'תיכנון') return 10
+  if (phase === 'שרשרת ספקה') return 20
+  if (phase === 'הוראות יצור') return 30
+  if (phase === 'שלד') return 40
+  if (phase === 'מעקות') return 50
+  if (name.includes('שלד אלומיניום')) return 61
+  if (phase === 'הרכבה ק.מ חולף' && !name.startsWith('גמר סיליקון')) return 62
+  if (name.startsWith('גמר סיליקון')) return 63
+  if (phase === 'הרכבה בולנוז' || /^B-\d+/.test(name)) return 70
+  if (phase === 'קומת קרקע') return 80
+  if (phase === 'תוספת מרפסות') return 90
+  if (phase === 'דלתות קרקע') return 100
+  if (phase === 'בקרת איכות') return 110
+  return 120
 }
 
 export async function GET(req: NextRequest) {

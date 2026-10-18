@@ -43,8 +43,8 @@ interface GanttChartProps {
 const HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
 
 const COL_WIDTH   = 90
-const ROW_HEIGHT  = 84
-const BAR_HEIGHT  = 24
+const ROW_HEIGHT  = 60
+const BAR_HEIGHT  = 18
 const LABEL_WIDTH = 380
 const YEAR_H      = 39
 const MONTH_H     = 36
@@ -778,8 +778,8 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
               />
               {progressWidth > 0 && <rect x={x} y={y + (ROW_HEIGHT - BAR_HEIGHT) / 2} width={progressWidth} height={BAR_HEIGHT} rx={4} fill={barColor} opacity={1} pointerEvents="none" />}
               {task.progress > 0 && task.progress < 100 && <line x1={x + progressWidth} y1={y + (ROW_HEIGHT - BAR_HEIGHT) / 2 - 2} x2={x + progressWidth} y2={y + (ROW_HEIGHT + BAR_HEIGHT) / 2 + 2} stroke="white" strokeWidth={2} />}
-              {isOverdue && <text x={x + width + 4} y={y + ROW_HEIGHT / 2 + 4} fontSize={fs(20)} pointerEvents="none">⚠️</text>}
-              {isBlocked && <text x={x - 16} y={y + ROW_HEIGHT / 2 + 4} fontSize={fs(18)}>🔒<title>{`חסום — מחכה ל: ${incompletePreds.map(p => p.name).join(', ')}`}</title></text>}
+              {isOverdue && <text x={x + width + 4} y={y + ROW_HEIGHT / 2 + 5} fontSize={fs(14)} pointerEvents="none">⚠️</text>}
+              {isBlocked && <text x={x - 14} y={y + ROW_HEIGHT / 2 + 5} fontSize={fs(14)}>🔒<title>{`חסום — מחכה ל: ${incompletePreds.map(p => p.name).join(', ')}`}</title></text>}
               {(() => {
                 const sd = new Date(task.startDate)
                 const ed = new Date(task.endDate)
@@ -841,13 +841,13 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             const w = yearMonths.length * colW
             return <g key={year}>
               <rect x={x} y={0} width={w} height={YEAR_H} fill="#111111" />
-              <text x={x + w / 2} y={25} textAnchor="middle" fill="white" fontSize={fs(20)} fontWeight="bold" fontFamily="Arial">{year}</text>
+              <text x={x + w / 2} y={24} textAnchor="middle" fill="white" fontSize={fs(15)} fontWeight="bold" fontFamily="Arial">{year}</text>
             </g>
           })}
           {MONTHS.map((month, i) => (
             <g key={i}>
               <rect x={labelW + i * colW} y={YEAR_H} width={colW} height={MONTH_H} fill={i % 2 === 0 ? '#2a2a2a' : '#1a1a1a'} />
-              <text x={labelW + i * colW + colW / 2} y={YEAR_H + 24} textAnchor="middle" fill="white" fontSize={fs(15)} fontFamily="Arial">
+              <text x={labelW + i * colW + colW / 2} y={YEAR_H + 24} textAnchor="middle" fill="white" fontSize={fs(12)} fontFamily="Arial">
                 {HEB_MONTHS[month.getMonth()].slice(0, 3)}
               </text>
             </g>
@@ -862,7 +862,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             return <g key={`wk-${i}`}>
               <rect x={x} y={YEAR_H + MONTH_H} width={w} height={WEEK_H} fill={i % 2 === 0 ? '#444444' : '#3a3a3a'} />
               <line x1={x} y1={YEAR_H + MONTH_H} x2={x} y2={HEADER_HEIGHT} stroke="#666" strokeWidth={0.7} />
-              <text x={x + w / 2} y={YEAR_H + MONTH_H + 22} textAnchor="middle" fill="#ddd" fontSize={fs(12)} fontFamily="Arial">{weekNum}</text>
+              <text x={x + w / 2} y={YEAR_H + MONTH_H + 22} textAnchor="middle" fill="#ddd" fontSize={fs(10)} fontFamily="Arial">{weekNum}</text>
             </g>
           })}
         </g>
@@ -875,7 +875,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                 <g key={`lbl-ph-${i}`}>
                   <rect x={0} y={y} width={labelW} height={ROW_HEIGHT} fill="#E8E8E8" />
                   <rect x={0} y={y} width={6} height={ROW_HEIGHT} fill={row.color || '#1F3864'} />
-                  <text x={16} y={y + ROW_HEIGHT / 2 + 7} fill="#1F3864" fontSize={fs(20)} fontWeight="bold" fontFamily="Arial">{row.label}</text>
+                  <text x={16} y={y + ROW_HEIGHT / 2 + 5} fill="#1F3864" fontSize={fs(14)} fontWeight="bold" fontFamily="Arial">{row.label}</text>
                 </g>
               )
             }
@@ -894,26 +894,26 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                   ? <rect x={0} y={y} width={5} height={ROW_HEIGHT} fill="#1F3864" />
                   : labelOverdue && <rect x={0} y={y} width={4} height={ROW_HEIGHT} fill="#C00000" />
                 }
-                <text x={54} y={y + 28} textAnchor="end" fill={labelOverdue ? '#C00000' : '#999'} fontSize={fs(17)} fontFamily="Arial" fontWeight="bold">{num}</text>
-                <text x={12} y={y + 30} fontSize={fs(24)} fill="#1F78C1" fontWeight="bold" fontFamily="Arial" textAnchor="middle"
+                <text x={54} y={y + 20} textAnchor="end" fill={labelOverdue ? '#C00000' : '#999'} fontSize={fs(12)} fontFamily="Arial" fontWeight="bold">{num}</text>
+                <text x={12} y={y + 20} fontSize={fs(16)} fill="#1F78C1" fontWeight="bold" fontFamily="Arial" textAnchor="middle"
                   className="cursor-pointer"
                   onClick={e => { e.stopPropagation(); setTooltip(prev => prev?.task.id === task.id ? null : { task, x: e.clientX, y: e.clientY }) }}>ⓘ</text>
-                <text x={60} y={y + 28} fill={labelOverdue ? '#C00000' : '#222'} fontSize={fs(24)} fontWeight="600" fontFamily="Arial">{task.name}</text>
+                <text x={60} y={y + 20} fill={labelOverdue ? '#C00000' : '#222'} fontSize={fs(14)} fontWeight="600" fontFamily="Arial">{task.name}</text>
                 {task.sdPhase && labelW > 60 && (
                   <>
-                    <rect x={labelW - 70} y={y + 6} width={62} height={26} rx={4} fill="#EEF2FF" />
-                    <text x={labelW - 39} y={y + 26} textAnchor="middle" fontSize={fs(18)} fill="#4472C4" fontWeight="700" fontFamily="Arial">{task.sdPhase}</text>
+                    <rect x={labelW - 50} y={y + 4} width={44} height={18} rx={4} fill="#EEF2FF" />
+                    <text x={labelW - 28} y={y + 16} textAnchor="middle" fontSize={fs(12)} fill="#4472C4" fontWeight="700" fontFamily="Arial">{task.sdPhase}</text>
                   </>
                 )}
                 {(task.stage || task.subStage || task.building) ? (
                   <>
-                    <text x={20} y={y + 52} fill="#145a8c" fontSize={fs(18)} fontFamily="Arial" direction="rtl" textAnchor="end">
+                    <text x={20} y={y + 35} fill="#145a8c" fontSize={fs(12)} fontFamily="Arial" direction="rtl" textAnchor="end">
                       {[task.stage ? `שלב ${task.stage}` : null, task.subStage ? `תת ${task.subStage}` : null,
                         task.building ? `בניין ${task.building}` : null, task.facade || null,
                         task.floors ? `ק׳ ${task.floors}` : null,
                         task.cost != null ? `₪${task.cost.toLocaleString('he-IL')}` : null].filter(Boolean).join(' | ')}
                     </text>
-                    <text x={20} y={y + 74} fill="#555" fontSize={fs(18)} fontFamily="Arial" direction="rtl" textAnchor="end">
+                    <text x={20} y={y + 49} fill="#555" fontSize={fs(12)} fontFamily="Arial" direction="rtl" textAnchor="end">
                       {task.phase === 'חלוקת פיגומים'
                         ? (task.notes || '')
                         : [task.scaffoldingNum ? `פיגום ${task.scaffoldingNum}` : null,
@@ -925,9 +925,9 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                   const preds = findPredecessors(task, tasks)
                   return (
                     <>
-                      <text x={20} y={y + 52} fill="#555" fontSize={fs(18)} fontFamily="Arial">{task.responsible}</text>
+                      <text x={20} y={y + 35} fill="#555" fontSize={fs(12)} fontFamily="Arial">{task.responsible}</text>
                       {preds.length > 0 && (
-                        <text x={20} y={y + 74} fill="#145a8c" fontSize={fs(17)} fontFamily="Arial">{`▶ ${preds.map(p => p.name).join(' + ')}`}</text>
+                        <text x={20} y={y + 49} fill="#145a8c" fontSize={fs(11)} fontFamily="Arial">{`▶ ${preds.map(p => p.name).join(' + ')}`}</text>
                       )}
                     </>
                   )
@@ -939,12 +939,12 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
 
         <g ref={cornerRef}>
           <rect x={0} y={0} width={labelW} height={HEADER_HEIGHT} fill="#111111" />
-          <text x={labelW / 2} y={HEADER_HEIGHT / 2 + 1} textAnchor="middle" fill="white" fontSize={fs(20)} fontWeight="bold" fontFamily="Arial">
+          <text x={labelW / 2} y={HEADER_HEIGHT / 2 + 1} textAnchor="middle" fill="white" fontSize={fs(14)} fontWeight="bold" fontFamily="Arial">
             MY-Dynamics — לוח זמנים
           </text>
           {labelW > 60 && <>
-            <text x={8} y={HEADER_HEIGHT - 20} fill="#AAD4FF" fontSize={fs(14)} fontFamily="Arial" fontWeight="bold">מס׳</text>
-            <text x={30} y={HEADER_HEIGHT - 20} fill="#AAD4FF" fontSize={fs(14)} fontFamily="Arial" fontWeight="bold">שם משימה</text>
+            <text x={8} y={HEADER_HEIGHT - 20} fill="#AAD4FF" fontSize={fs(11)} fontFamily="Arial" fontWeight="bold">מס׳</text>
+            <text x={30} y={HEADER_HEIGHT - 20} fill="#AAD4FF" fontSize={fs(11)} fontFamily="Arial" fontWeight="bold">שם משימה</text>
             <line x1={0} y1={HEADER_HEIGHT - 10} x2={labelW} y2={HEADER_HEIGHT - 10} stroke="#AAD4FF" strokeOpacity={0.3} strokeWidth={0.5} />
           </>}
         </g>
@@ -966,15 +966,15 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
       </svg>
 
       <div style={{ padding: '8px 16px', borderTop: '1px solid #E5E7EB', background: '#FAFAFA', display: 'flex', gap: 20, alignItems: 'center', direction: 'rtl' }}>
-        <span style={{ fontSize: fs(16), color: '#666' }}>אגדה:</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: fs(16), color: '#333' }}>
+        <span style={{ fontSize: fs(13), color: '#666' }}>אגדה:</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: fs(13), color: '#333' }}>
           <span style={{ display: 'inline-block', width: 20, height: 14, background: '#E8F0FF', border: '1px solid #4472C4', borderRadius: 2 }} />חגים יהודיים
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: fs(16), color: '#333' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: fs(13), color: '#333' }}>
           <span style={{ display: 'inline-block', width: 20, height: 14, background: '#E8F5E9', border: '1px solid #2E7D32', borderRadius: 2 }} />חגים מוסלמיים (עיד)
         </span>
         {Object.keys(baselineByTaskId).length > 0 && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: fs(16), color: '#333', cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: fs(13), color: '#333', cursor: 'pointer' }}>
             <input type="checkbox" checked={showBaseline} onChange={e => setShowBaseline(e.target.checked)} />
             <span style={{ display: 'inline-block', width: 16, height: 4, background: '#888', borderRadius: 1 }} />בייסליין (תוכנית מקורית)
           </label>
