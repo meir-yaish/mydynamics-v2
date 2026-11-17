@@ -259,9 +259,9 @@ const MODULES = [
   },
   {
     num: 8,
-    href: '/drawings',
-    label: 'שרטוטים',
-    desc: 'צפייה בשרטוטים וחזיתות',
+    href: '/t3-app/index.html',
+    label: 'תלת מימד',
+    desc: 'מודל Revit, חזיתות ומעקב ביצוע',
     Illustration: DrawingsSvg,
     color: '#16a34a',
     bg: '#f0fdf4',
