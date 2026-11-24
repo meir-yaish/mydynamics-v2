@@ -390,6 +390,7 @@ function v3d(){
       <div style="flex:0 0 300px;display:flex;flex-direction:column;gap:14px">
       <div id="inf" class="card">לחץ על פאנל במודל.<p class="leg">צבעים: אפור = לא בוצע, כתום = בתהליך, ירוק = בוצע.</p>
       <p class="leg">המודל הסכמטי מציג חזיתות לפי בניין, חזית וקומות. הממדים משוערים עד שנטען מודל אמיתי.</p></div>
+      <div id="fc" class="card"></div>
       <div id="zl" class="card"></div></div></div>`;
   const el=cv,w=el.clientWidth,h=el.clientHeight;
   const scene=new THREE.Scene();
@@ -568,9 +569,41 @@ function v3d(){
     else if(e.key==='Escape'){if(cur.length){cur=[];zCur();zStatus()}else zMode(false)}
     else if(e.key==='Backspace'){e.preventDefault();cur.pop();zCur();zStatus()}
   }
-  function zSync(){zg.visible=real.visible&&zShow.checked;dg.visible=real.visible;zl.style.display=real.visible?'':'none';if(!real.visible&&drawMode)zMode(false)}
+  function zSync(){zg.visible=real.visible&&zShow.checked;dg.visible=real.visible;zl.style.display=real.visible?'':'none';fc.style.display=real.visible?'':'none';if(!real.visible&&drawMode)zMode(false);if(!real.visible)rd.clippingPlanes=[]}
   zBtn.onclick=()=>zMode(!drawMode);zShow.onchange=zSync;document.addEventListener('keydown',zKey);
   zBuild();zList();
+
+  // ----- חזיתות: סיבוב המצלמה לחזית; חזית פנים מוצגת בחתך (צפון הפרויקט = כיוון 60° בצירי Revit; A מזרח ישר, B מערב מוטה) -----
+  const NC=Math.cos(Math.PI/3),NS=Math.sin(Math.PI/3),V_CUT=84.5;
+  const DIR={N:[NC,NS],S:[-NC,-NS],E:[NS,-NC],W:[-NS,NC]},TW={A:[-77.8,10.6],B:[-101.7,28.6]};
+  const FAC=[['A','N','צפון'],['A','S','דרום'],['A','E','מזרח'],['A','W','מערב פנים','low'],['B','N','צפון'],['B','S','דרום'],['B','W','מערב'],['B','E','מזרח פנים','high']];
+  let facKey='',flyT=0;
+  function fly(pos,tgt){
+    const p0=cam.position.clone(),t0=ctl.target.clone(),t1=performance.now();cancelAnimationFrame(flyT);
+    const step=now=>{const k=Math.min(1,(now-t1)/700),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+      cam.position.lerpVectors(p0,pos,e);ctl.target.lerpVectors(t0,tgt,e);ctl.update();if(k<1)flyT=requestAnimationFrame(step)};
+    flyT=requestAnimationFrame(step);
+  }
+  function fSection(side){
+    rd.clippingPlanes=side==='low'?[new THREE.Plane(new THREE.Vector3(NS,0,NC),V_CUT)]:side==='high'?[new THREE.Plane(new THREE.Vector3(-NS,0,-NC),-V_CUT)]:[];
+  }
+  function fGo(f){
+    const c=TW[f[0]],d=DIR[f[1]],D=100;
+    fSection(f[3]||'');facKey=f[0]+f[1];
+    fly(new THREE.Vector3(c[0]+d[0]*D,26,-(c[1]+d[1]*D)),new THREE.Vector3(c[0],14,-c[1]));fBtns();
+  }
+  function fAll(){facKey='';fSection('');fly(REAL.cam.pos.clone(),REAL.cam.target.clone());fBtns()}
+  function fBtns(){
+    const cur=FAC.find(f=>f[0]+f[1]===facKey);
+    fc.innerHTML='<h2>חזיתות</h2><div class="leg">לחץ על חזית כדי להסתובב אליה. חזית פנים מוצגת בחתך.</div>'+
+      [['A','בניין A · מזרח'],['B','בניין B · מערב']].map(([tw,t])=>`<div style="margin:8px 0 4px;font-weight:600">${t}</div><div style="display:flex;gap:6px;flex-wrap:wrap">`+
+        FAC.filter(f=>f[0]===tw).map(f=>`<button class="act fb" data-k="${f[0]+f[1]}" style="${facKey===f[0]+f[1]?'background:var(--brand);color:#fff;border-color:var(--brand)':''}">${f[2]}${f[3]?' · חתך':''}</button>`).join('')+'</div>').join('')+
+      `<div style="margin-top:10px"><button class="act" id="fAll">מבט כללי</button></div>`+
+      `<div class="leg">${cur&&cur[3]?'חתך: המגדל שמול החזית מוסתר כדי לראות אותה.':''}</div>`;
+    fc.querySelectorAll('.fb').forEach(b=>b.onclick=()=>fGo(FAC.find(f=>f[0]+f[1]===b.dataset.k)));
+    document.getElementById('fAll').onclick=fAll;
+  }
+  if(hasReal)fBtns();else fc.style.display='none';
 
   vm.onchange=()=>{S.v3mode=vm.value;save();v3d()};
   vv.value=hasReal?(S.v3view||'real'):'sch';vv.disabled=!hasReal;
