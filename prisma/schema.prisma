@@ -400,3 +400,4 @@ model Settings {
   weeklyReportDay Int    @default(0)
   weeklyReportTime String @default("08:00")
 }
+  ramadanHalfDays Boolean @default(false)

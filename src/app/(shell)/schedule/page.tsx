@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
+import { Moon } from 'lucide-react'
 import TaskTable from '@/components/schedule/TaskTable'
 import MilestoneStatus from '@/components/schedule/MilestoneStatus'
 import FinanceNav from '@/components/schedule/FinanceNav'
@@ -115,6 +116,8 @@ export default function SchedulePage() {
   const [newTask, setNewTask]             = useState({ name: '', phase: '', responsible: '', startDate: '', endDate: '' })
   const [projects, setProjects]           = useState<{ id: string; name: string }[]>([])
   const [procurementTaskIds, setProcurementTaskIds] = useState<Set<string>>(new Set())
+  const [ramadanHalfDays, setRamadanHalfDays] = useState(false)
+  const [ramadanBusy, setRamadanBusy]         = useState(false)
 
   const userName = session?.user?.name ?? ''
   const userRole = (session?.user as { role?: string })?.role ?? ''
@@ -149,6 +152,11 @@ export default function SchedulePage() {
 
     async function init() {
       try {
+        const settingsRes = await fetch('/api/schedule/settings')
+        if (settingsRes.ok) {
+          const s: { ramadanHalfDays?: boolean } = await settingsRes.json()
+          setRamadanHalfDays(s.ramadanHalfDays === true)
+        }
         const res = await fetch('/api/schedule/projects')
         if (!res.ok) return
         const allProjects: { id: string; name: string }[] = await res.json()
@@ -264,6 +272,28 @@ export default function SchedulePage() {
     const res = await fetch('/api/schedule/milestones', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     if (res.ok) setMilestones(prev => prev.filter(x => x.id !== id))
   }, [milestones])
+
+  async function toggleRamadan() {
+    const next = !ramadanHalfDays
+    const msg = next
+      ? 'להחזיר את ימי הרמדאן? הם יספרו כחצי יום עבודה, ותאריכי פעילויות ההתקנה (A, G, S, B) יחושבו מחדש.'
+      : 'לבטל את ימי הרמדאן? הם יספרו כיום עבודה מלא, ותאריכי פעילויות ההתקנה (A, G, S, B) יחושבו מחדש.'
+    if (!window.confirm(msg)) return
+    setRamadanBusy(true)
+    try {
+      const res = await fetch('/api/schedule/settings', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ramadanHalfDays: next }),
+      })
+      if (!res.ok) {
+        const err: { error?: string } = await res.json().catch(() => ({}))
+        alert(err.error ?? 'שינוי הגדרת ימי הרמדאן נכשל — נסה שוב.')
+        return
+      }
+      setRamadanHalfDays(next)
+      if (projectId) await loadData(projectId)
+      setLastSaved(new Date().toLocaleTimeString('he-IL'))
+    } finally { setRamadanBusy(false) }
+  }
 
   async function sendUpdate() {
     if (!projectId) return
@@ -403,6 +433,15 @@ export default function SchedulePage() {
           style={{ background: sending ? '#555' : '#00B050', color: 'white' }}>
           {sending ? '⏳ מעדכן...' : '🔄 עדכון'}
         </button>
+        {canEdit && (
+          <button onClick={toggleRamadan} disabled={ramadanBusy}
+            title={ramadanHalfDays ? 'ימי רמדאן נספרים כחצי יום — לחץ לביטול' : 'ימי רמדאן מבוטלים (יום מלא) — לחץ להחזרה'}
+            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium"
+            style={{ background: ramadanBusy ? '#555' : ramadanHalfDays ? 'transparent' : '#2E7D32', color: 'white', border: '1px solid #2E7D32' }}>
+            <Moon className="w-4 h-4" />
+            {ramadanBusy ? 'מחשב מחדש...' : ramadanHalfDays ? 'בטל ימי רמדאן' : 'ימי רמדאן מבוטלים · החזר'}
+          </button>
+        )}
         {canViewReports && !isLogisticsProject && <FinanceNav />}
         {isLogisticsProject && (
           <Link href="/schedule/procurement" className="flex items-center gap-1 px-3 py-1.5 rounded text-xs" style={{ background: '#B45309', color: 'white' }}>🛒 רכש</Link>
@@ -423,7 +462,7 @@ export default function SchedulePage() {
 
       {/* Content */}
       <div className="flex-1 min-h-0 px-4 pb-2 pt-3" style={{ display: 'flex', flexDirection: 'column' }}>
-        {view === 'gantt' && <GanttChart tasks={filteredTasks} onTaskUpdate={handleTaskUpdate} onTaskDelete={handleTaskDelete} taskSerialNumbers={taskSerialNumbers} canEdit={canEdit} procurementOnly={activeFilter === PROCUREMENT_FILTER_KEY} projectId={projectId} />}
+        {view === 'gantt' && <GanttChart tasks={filteredTasks} onTaskUpdate={handleTaskUpdate} onTaskDelete={handleTaskDelete} taskSerialNumbers={taskSerialNumbers} canEdit={canEdit} procurementOnly={activeFilter === PROCUREMENT_FILTER_KEY} projectId={projectId} ramadanHalfDays={ramadanHalfDays} />}
         {view === 'table' && <TaskTable tasks={filteredTasks} onTaskUpdate={handleTaskUpdate} onTaskDelete={handleTaskDelete} canEdit={canEdit} />}
         {view === 'milestones' && <MilestoneStatus milestones={milestones} onStatusChange={handleMilestoneStatus} onUpdate={handleMilestoneUpdate} onAdd={handleMilestoneAdd} onDelete={handleMilestoneDelete} tasks={visibleTasks} canEdit={canEdit} criticalTasks={criticalTasksForFilter} criticalFilterLabel={activeFilters.find(f => f.key === activeFilter)?.label ?? 'הכל'} onTaskUpdate={handleTaskUpdate} onTaskDelete={handleTaskDelete} />}
       </div>

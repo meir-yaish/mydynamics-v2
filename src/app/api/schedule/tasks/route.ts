@@ -29,13 +29,22 @@ export async function GET(req: NextRequest) {
     orderBy: [{ startDate: 'asc' }, { order: 'asc' }],
     include: { changes: { orderBy: { changedAt: 'desc' }, take: 5 } }
   })
+  const installationNum = (name: string): number | null => {
+    const m = name.match(/^[AGSB]-(\d+)/) ?? name.match(/S-(\d+)/)
+    return m ? parseInt(m[1]) : null
+  }
   tasks.sort((a, b) => {
     const ga = taskGroupOrder(a.name, a.phase)
     const gb = taskGroupOrder(b.name, b.phase)
     if (ga !== gb) return ga - gb
+    const na = installationNum(a.name)
+    const nb = installationNum(b.name)
+    if (na !== null && nb !== null) return na - nb
     return new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
   })
-  return NextResponse.json(tasks)
+  const res = NextResponse.json(tasks)
+  res.headers.set('Cache-Control', 'no-store')
+  return res
 }
 
 export async function POST(req: NextRequest) {

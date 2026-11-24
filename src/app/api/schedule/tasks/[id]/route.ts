@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { isInstallationName, computeInstallationSchedule, localDay, dayKey, type EngineResult } from '@/lib/schedule/installationEngine'
+import { applyScheduleChanges } from '@/lib/schedule/recalcInstallation'
 
 const UPDATABLE_FIELDS = ['name', 'startDate', 'endDate', 'progress', 'responsible', 'notes', 'phase', 'color', 'order', 'stage', 'subStage', 'building', 'facade', 'floors', 'scaffoldingNum', 'dependencies', 'cost', 'quantity', 'revenue', 'costLogistics', 'costInstallation', 'costManagement', 'quotedPrice', 'costBreakdown', 'wbsStage', 'customImage', 'customImageRegion', 'sdPhase']
 
@@ -105,8 +107,35 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const taskMap = new Map(allTasks.map(t => [t.id, { ...t }]))
       taskMap.set(id, task as Parameters<typeof taskMap.set>[1])
 
+      // פעילויות התקנה (A/G/S/B): התפשטות לפי לוח שנה ונוסחאות משך (אותו מנוע כמו בכפתור הרמדאן)
+      const handledByEngine = new Set<string>()
+      if (isInstallationName(existing.name)) {
+        const settings = await prisma.settings.findUnique({ where: { id: 'singleton' } })
+        const movable = new Set(successorIds.filter(s => !excludeCascadeIds.includes(s)))
+        const installTasks = allTasks.filter(t => isInstallationName(t.name))
+        const pinned = new Map<string, EngineResult>()
+        for (const t of installTasks) {
+          if (movable.has(t.id)) continue
+          const cur = t.id === id ? task : t
+          pinned.set(t.id, { startDate: localDay(new Date(cur.startDate)), endDate: localDay(new Date(cur.endDate)) })
+        }
+        const { results } = computeInstallationSchedule(installTasks, settings?.ramadanHalfDays ?? false, pinned)
+        const changes: { id: string; startDate: Date; endDate: Date }[] = []
+        for (const t of installTasks) {
+          const r = results.get(t.id)
+          if (!r || !movable.has(t.id)) continue
+          handledByEngine.add(t.id)
+          if (dayKey(t.startDate) === dayKey(r.startDate) && dayKey(t.endDate) === dayKey(r.endDate)) continue
+          changes.push({ id: t.id, startDate: r.startDate, endDate: r.endDate })
+          const updated = { ...t, startDate: r.startDate, endDate: r.endDate }
+          taskMap.set(t.id, updated)
+          updatedTasks.push(updated as typeof existing & Record<string, unknown>)
+        }
+        if (!dryRun) await applyScheduleChanges(changes)
+      }
+
       for (const succId of successorIds) {
-        if (excludeCascadeIds.includes(succId)) continue
+        if (excludeCascadeIds.includes(succId) || handledByEngine.has(succId)) continue
         const succ = taskMap.get(succId)
         if (!succ) continue
 

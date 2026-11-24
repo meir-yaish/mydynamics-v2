@@ -1,7 +1,8 @@
 'use client'
 import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react'
 import { differenceInDays, addMonths } from 'date-fns'
-import { JEWISH_HOLIDAYS, MUSLIM_HOLIDAYS } from '@/lib/schedule/calendar'
+import { JEWISH_HOLIDAYS, MUSLIM_HOLIDAYS, RAMADAN_DAYS, workDaysBetween, calendarForResponsible } from '@/lib/schedule/calendar'
+import { localDay, requiredWorkDays } from '@/lib/schedule/installationEngine'
 import ProcurementPanel, { ProcurementPanelHandle } from './ProcurementPanel'
 import FacadeView from './FacadeView'
 import TaskImageEditor from './TaskImageEditor'
@@ -38,6 +39,16 @@ interface GanttChartProps {
   canEdit?: boolean
   procurementOnly?: boolean
   projectId?: string | null
+  ramadanHalfDays?: boolean
+}
+
+function taskDurations(task: Task, ramadan: boolean) {
+  const start = localDay(new Date(task.startDate))
+  const end = localDay(new Date(task.endDate))
+  const calendarDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1
+  const work = workDaysBetween(start, end, calendarForResponsible(task.responsible), ramadan)
+  const req = requiredWorkDays(task.name, task.notes ?? null, task.quantity ?? null, task.floors ?? null)
+  return { calendarDays, workDays: work, required: req === null ? null : Math.round(req.days * 10) / 10, basis: req?.basis ?? '' }
 }
 
 const HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
@@ -67,11 +78,12 @@ function findSuccessors(task: Task, allTasks: Task[]): Task[] {
   })
 }
 
-export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSerialNumbers, canEdit = false, procurementOnly = false, projectId }: GanttChartProps) {
+export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSerialNumbers, canEdit = false, procurementOnly = false, projectId, ramadanHalfDays = false }: GanttChartProps) {
   const [editTask, setEditTask]       = useState<Task | null>(null)
   const [procurementFocusTask, setProcurementFocusTask] = useState<Task | null>(null)
   const [baselineByTaskId, setBaselineByTaskId] = useState<Record<string, { startDate: string; endDate: string }>>({})
   const [showBaseline, setShowBaseline] = useState(true)
+  const [showDependencies, setShowDependencies] = useState(true)
 
   useEffect(() => {
     if (!projectId) { setBaselineByTaskId({}); return }
@@ -91,6 +103,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const procurementRef = useRef<ProcurementPanelHandle>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [tooltip, setTooltip]         = useState<{ task: Task; x: number; y: number } | null>(null)
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
   const [depSearch, setDepSearch]     = useState('')
   const [succStartOverrides, setSuccStartOverrides] = useState<Record<string, string>>({})
   const [succSearch, setSuccSearch]   = useState('')
@@ -101,6 +114,15 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
   const [earlyCompletionPrompt, setEarlyCompletionPrompt] = useState<{ onYes: () => void; onNo: () => void } | null>(null)
   const [excludedFromCascade, setExcludedFromCascade] = useState<Set<string>>(new Set())
   const [zoom, setZoom]               = useState(1)
+
+  async function openEditTask(task: Task) {
+    setSuccStartOverrides({}); setSuccAdd([]); setSuccRemove([]); setSuccSearch('')
+    setEditTask(task)
+    try {
+      const fresh = await fetch(`/api/schedule/tasks/${task.id}`).then(r => r.json())
+      if (fresh?.id) setEditTask(fresh as Task)
+    } catch { /* use local state */ }
+  }
   const [viewMode, setViewMode]       = useState<'gantt' | 'list'>('gantt')
 
 
@@ -297,8 +319,18 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
     return bands
   }
 
+  const selectedWeekRect = (() => {
+    if (selectedWeek === null) return null
+    const i = WEEK_MONDAYS.findIndex(m => m.getTime() === selectedWeek)
+    if (i < 0) return null
+    const monday = WEEK_MONDAYS[i]
+    const next = WEEK_MONDAYS[i + 1] ?? new Date(monday.getTime() + 7 * 86400000)
+    const x = dateToX(next)
+    return { x, w: dateToX(monday) - x }
+  })()
+
   const jewishBands = buildHolidayBands(JEWISH_HOLIDAYS)
-  const muslimBands = buildHolidayBands(MUSLIM_HOLIDAYS)
+  const muslimBands = buildHolidayBands(ramadanHalfDays ? new Set([...MUSLIM_HOLIDAYS, ...RAMADAN_DAYS]) : MUSLIM_HOLIDAYS)
 
   const fs = (n: number) => n
 
@@ -354,7 +386,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                 const num = taskSerialNumbers?.[task.id] ?? idx + 1
                 const overdue = task.progress < 100 && new Date(task.endDate) < new Date()
                 return (
-                  <tr key={task.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => { if (!procurementOnly) { setEditTask(task); setSuccStartOverrides({}); setSuccAdd([]); setSuccRemove([]); setSuccSearch('') } }}>
+                  <tr key={task.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => { if (!procurementOnly) openEditTask(task) }}>
                     <td className="py-2.5 px-3 text-gray-400 text-center">{num}</td>
                     <td className="py-2.5 px-3 font-medium text-gray-900">{task.name}</td>
                     <td className="py-2.5 px-3 text-gray-600">{[task.stage, task.subStage].filter(Boolean).join(' | ')}</td>
@@ -389,6 +421,8 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
         let editDeps: string[] = []
         try { editDeps = JSON.parse(editTask.dependencies || '[]') } catch { editDeps = [] }
         const editPreds = editDeps.map(id => tasks.find(t => t.id === id)).filter(Boolean) as Task[]
+        const blockedByPreds = editPreds.filter(p => p.progress < 100)
+        const isEditBlocked = blockedByPreds.length > 0
         const realSuccs = findSuccessors(editTask, tasks).filter(s => !succRemove.includes(s.id))
         const pendingSuccs = succAdd.map(id => tasks.find(t => t.id === id)).filter(Boolean) as Task[]
         const displaySuccs = [...realSuccs, ...pendingSuccs]
@@ -503,7 +537,14 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">התקדמות: {editTask.progress}%</label>
-                    <input type="range" min="0" max="100" className="w-full" value={editTask.progress} onChange={e => setEditTask({...editTask, progress: parseInt(e.target.value)})} />
+                    {isEditBlocked ? (
+                      <div className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">
+                        <span>🔒</span>
+                        <span>ממתינה ל: <strong>{blockedByPreds.map(p => p.name).join(', ')}</strong></span>
+                      </div>
+                    ) : (
+                      <input type="range" min="0" max="100" className="w-full" value={editTask.progress} onChange={e => setEditTask({...editTask, progress: parseInt(e.target.value)})} />
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">אחראי</label>
@@ -720,9 +761,19 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             <div className="text-xs mt-0.5 text-gray-300">
               {new Date(tooltip.task.startDate).toLocaleDateString('he-IL')} — {new Date(tooltip.task.endDate).toLocaleDateString('he-IL')}
             </div>
-            <div className="text-xs font-bold text-amber-300 mt-0.5">
-              משך: {Math.round((new Date(tooltip.task.endDate).getTime() - new Date(tooltip.task.startDate).getTime()) / 86400000) + 1} ימים
-            </div>
+            {(() => {
+              const d = taskDurations(tooltip.task, ramadanHalfDays)
+              return (
+                <>
+                  <div className="text-xs font-bold text-amber-300 mt-0.5">
+                    משך: {d.calendarDays} ימים ברוטו · {d.workDays} ימים נטו
+                  </div>
+                  {d.required !== null && (
+                    <div className="text-xs text-gray-300">לפי {d.basis}: {d.required} ימים נטו</div>
+                  )}
+                </>
+              )
+            })()}
             <div className="text-xs">התקדמות: {tooltip.task.progress}%</div>
             {predecessors.length > 0 && (
               <div className="mt-1.5 border-t border-gray-600 pt-1.5">
@@ -755,6 +806,13 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
         {muslimBands.map((b, i) => (
           <rect key={`mh-${i}`} x={b.x} y={HEADER_HEIGHT} width={b.width} height={totalHeight - HEADER_HEIGHT} fill="#E8F5E9" opacity={0.60} />
         ))}
+        {selectedWeekRect && (
+          <g pointerEvents="none">
+            <rect x={selectedWeekRect.x} y={HEADER_HEIGHT} width={selectedWeekRect.w} height={totalHeight - HEADER_HEIGHT} fill="#FFC107" opacity={0.28} />
+            <line x1={selectedWeekRect.x} y1={HEADER_HEIGHT} x2={selectedWeekRect.x} y2={totalHeight} stroke="#F59E0B" strokeWidth={1} />
+            <line x1={selectedWeekRect.x + selectedWeekRect.w} y1={HEADER_HEIGHT} x2={selectedWeekRect.x + selectedWeekRect.w} y2={totalHeight} stroke="#F59E0B" strokeWidth={1} />
+          </g>
+        )}
 
         {rows.map((row, i) => {
           const y = HEADER_HEIGHT + row.y
@@ -775,7 +833,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           const barColor = isOverdue ? '#C00000' : task.color
           const isSelected = selectedTaskId === task.id
           const incompletePreds = findPredecessors(task, tasks).filter(p => p.progress < 100)
-          const isBlocked = incompletePreds.length > 0 && new Date(task.startDate) <= new Date()
+          const isBlocked = incompletePreds.length > 0
 
           return (
             <g key={`task-${task.id}`}>
@@ -802,7 +860,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                 className={canEdit ? 'cursor-pointer' : 'cursor-default'}
                 onClick={() => canEdit && (procurementOnly
                   ? setProcurementFocusTask(task)
-                  : (setEditTask(task), setSuccStartOverrides({}), setSuccAdd([]), setSuccRemove([]), setSuccSearch('')))}
+                  : openEditTask(task))}
               />
               {progressWidth > 0 && <rect x={x + width - progressWidth} y={y + (ROW_HEIGHT - BAR_HEIGHT) / 2} width={progressWidth} height={BAR_HEIGHT} rx={4} fill={barColor} opacity={1} pointerEvents="none" />}
               {task.progress > 0 && task.progress < 100 && <line x1={x + width - progressWidth} y1={y + (ROW_HEIGHT - BAR_HEIGHT) / 2 - 2} x2={x + width - progressWidth} y2={y + (ROW_HEIGHT + BAR_HEIGHT) / 2 + 2} stroke="white" strokeWidth={2} />}
@@ -823,18 +881,18 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           )
         })}
 
-        {tasks.flatMap(task => {
+        {showDependencies && tasks.flatMap(task => {
           let deps: string[] = []
           try { deps = JSON.parse(task.dependencies || '[]') } catch { deps = [] }
           return deps.flatMap((depId, di) => {
             const from = taskBarPos[depId]
             const to   = taskBarPos[task.id]
             if (!from || !to) return []
-            const x1 = from.x, y1 = from.midY
-            const x2 = to.x + to.width, y2 = to.midY
-            const cx1 = x1 - Math.min(40, Math.abs(x1 - x2) * 0.4)
-            const cx2 = x2 + Math.min(40, Math.abs(x1 - x2) * 0.4)
-            return [<path key={`dep-${task.id}-${depId}-${di}`} d={`M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}`}
+            const x1 = from.x, y1 = from.midY           // predecessor END (left edge in RTL)
+            const x2 = to.x + to.width, y2 = to.midY   // successor START (right edge in RTL)
+            const elbowX = Math.min(x1, x2) - 18
+            const d = `M ${x1} ${y1} L ${elbowX} ${y1} L ${elbowX} ${y2} L ${x2} ${y2}`
+            return [<path key={`dep-${task.id}-${depId}-${di}`} d={d}
               fill="none" stroke="#888" strokeWidth={1} strokeDasharray="4,3" markerEnd="url(#arrow)" opacity={0.6} pointerEvents="none" />]
           })
         })}
@@ -889,10 +947,11 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             if (w <= 0) return null
             const jan1 = new Date(monday.getFullYear(), 0, 1)
             const weekNum = Math.floor((monday.getTime() - jan1.getTime()) / (7 * 86400000)) + 1
-            return <g key={`wk-${i}`}>
-              <rect x={x} y={YEAR_H + MONTH_H} width={w} height={WEEK_H} fill={i % 2 === 0 ? '#444444' : '#3a3a3a'} />
+            const isSelected = selectedWeek === monday.getTime()
+            return <g key={`wk-${i}`} style={{ cursor: 'pointer' }} onClick={() => setSelectedWeek(isSelected ? null : monday.getTime())}>
+              <rect x={x} y={YEAR_H + MONTH_H} width={w} height={WEEK_H} fill={isSelected ? '#F59E0B' : i % 2 === 0 ? '#444444' : '#3a3a3a'} />
               <line x1={x} y1={YEAR_H + MONTH_H} x2={x} y2={HEADER_HEIGHT} stroke="#666" strokeWidth={0.7} />
-              <text x={x + w / 2} y={YEAR_H + MONTH_H + 22} textAnchor="middle" fill="#ddd" fontSize={fs(10)} fontFamily="Arial">{weekNum}</text>
+              <text x={x + w / 2} y={YEAR_H + MONTH_H + 22} textAnchor="middle" fill={isSelected ? '#1a1a1a' : '#ddd'} fontSize={fs(10)} fontWeight={isSelected ? 700 : 400} fontFamily="Arial">{weekNum}</text>
             </g>
           })}
         </g>
@@ -989,7 +1048,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
               fill="transparent" pointerEvents="all" style={{ cursor: 'pointer' }}
               onClick={() => {
                 if (procurementOnly) { setProcurementFocusTask(task) }
-                else { setEditTask(task); setSuccStartOverrides({}); setSuccAdd([]); setSuccRemove([]); setSuccSearch('') }
+                else { openEditTask(task) }
               }} />
           )
         })}
@@ -1009,6 +1068,10 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
             <span style={{ display: 'inline-block', width: 16, height: 4, background: '#888', borderRadius: 1 }} />בייסליין (תוכנית מקורית)
           </label>
         )}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: fs(13), color: '#333', cursor: 'pointer' }}>
+          <input type="checkbox" checked={showDependencies} onChange={e => setShowDependencies(e.target.checked)} />
+          <span style={{ display: 'inline-block', width: 16, height: 4, background: '#888', borderRadius: 1, borderTop: '2px dashed #888' }} />קשרי תלות
+        </label>
       </div>
     </div>}
     </div>
