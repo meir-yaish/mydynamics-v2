@@ -103,7 +103,6 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
 
   const procurementRef = useRef<ProcurementPanelHandle>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
-  const [tooltip, setTooltip]         = useState<{ task: Task; x: number; y: number } | null>(null)
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null)
   const [depSearch, setDepSearch]     = useState('')
   const [succStartOverrides, setSuccStartOverrides] = useState<Record<string, string>>({})
@@ -453,6 +452,13 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" onClick={() => setEditTask(null)}>
             <div className="bg-white rounded-xl shadow-2xl w-[1100px] max-w-[95vw] max-h-[90vh] flex flex-col" dir="rtl" onClick={e => e.stopPropagation()}>
               <h3 className="text-xl font-bold text-[#1F3864] px-6 pt-6">עריכת משימה</h3>
+              {(editTask.stage || editTask.subStage || editTask.building || editTask.facade || editTask.floors || editTask.scaffoldingNum) && (
+                <div className="px-6 text-xs text-gray-500">
+                  {[editTask.stage ? `שלב ${editTask.stage}` : null, editTask.subStage ? `תת ${editTask.subStage}` : null,
+                    editTask.building ? `בניין ${editTask.building}` : null, editTask.facade || null,
+                    editTask.floors ? `ק׳ ${editTask.floors}` : null, editTask.scaffoldingNum ? `פיגום ${editTask.scaffoldingNum}` : null].filter(Boolean).join(' | ')}
+                </div>
+              )}
               <div className="flex gap-4 px-6 py-4 flex-1 min-h-0">
                 <div className="flex-1 min-w-0 overflow-y-auto max-h-[72vh] pe-4 border-e border-gray-200 space-y-3">
 
@@ -536,6 +542,21 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                       <input type="date" className="w-full border rounded px-3 py-2" value={editTask.endDate.split('T')[0]} onChange={e => setEditTask({...editTask, endDate: e.target.value})} />
                     </div>
                   </div>
+                  {(() => {
+                    const d = taskDurations(editTask, ramadanHalfDays)
+                    return (
+                      <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                        <div className="font-semibold text-gray-900">משך: {d.calendarDays} ימים ברוטו · {d.workDays} ימים נטו</div>
+                        {d.glazing ? (
+                          <div className="text-gray-600 mt-0.5">
+                            {d.glazing.rate} יח׳ ליום: {d.glazing.fullDays === 0 ? `${d.glazing.rest} יח׳ ביום אחד` : `${d.glazing.fullDays === 1 ? 'יום מלא' : `${d.glazing.fullDays} ימים מלאים`}${d.glazing.rest > 0 ? ` + ${d.glazing.rest} יח׳ ביום האחרון` : ''}`}
+                          </div>
+                        ) : d.required !== null && (
+                          <div className="text-gray-600 mt-0.5">לפי {d.basis}: {d.required} ימים נטו</div>
+                        )}
+                      </div>
+                    )
+                  })()}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">התקדמות: {editTask.progress}%</label>
                     {isEditBlocked ? (
@@ -737,67 +758,6 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
         </div>
       )}
 
-      {tooltip && (() => {
-        const predecessors = findPredecessors(tooltip.task, tasks)
-        const successors   = findSuccessors(tooltip.task, tasks)
-        return (
-          <div className="fixed z-40 bg-gray-900 text-white text-sm rounded-lg px-3 py-2" dir="rtl"
-            style={{ left: tooltip.x + 10, top: tooltip.y - 70, maxWidth: 340 }}>
-            <button onClick={() => setTooltip(null)} className="absolute top-1 left-1.5 text-gray-400 hover:text-white text-xs leading-none">✕</button>
-            <div className="font-bold text-base flex items-center gap-2">
-              {tooltip.task.name}
-              {tooltip.task.sdPhase && (
-                <span style={{ fontSize: fs(11), background: '#EEF2FF', color: '#4472C4', padding: '1px 7px', borderRadius: 4, fontWeight: 700 }}>{tooltip.task.sdPhase}</span>
-              )}
-            </div>
-            {(tooltip.task.stage || tooltip.task.subStage) && (
-              <div className="text-blue-200 text-xs mt-0.5">
-                {[tooltip.task.stage ? `שלב ${tooltip.task.stage}` : null, tooltip.task.subStage ? `תת ${tooltip.task.subStage}` : null,
-                  tooltip.task.building ? `בניין ${tooltip.task.building}` : null, tooltip.task.facade || null,
-                  tooltip.task.floors ? `ק׳ ${tooltip.task.floors}` : null, tooltip.task.scaffoldingNum ? `פיגום ${tooltip.task.scaffoldingNum}` : null,
-                  tooltip.task.quantity != null ? `כמות ${tooltip.task.quantity} יח׳` : null].filter(Boolean).join(' | ')}
-              </div>
-            )}
-            <div className="text-gray-300 text-xs">{tooltip.task.responsible}</div>
-            <div className="text-xs mt-0.5 text-gray-300">
-              {new Date(tooltip.task.startDate).toLocaleDateString('he-IL')} — {new Date(tooltip.task.endDate).toLocaleDateString('he-IL')}
-            </div>
-            {(() => {
-              const d = taskDurations(tooltip.task, ramadanHalfDays)
-              return (
-                <>
-                  <div className="text-xs font-bold text-amber-300 mt-0.5">
-                    משך: {d.calendarDays} ימים ברוטו · {d.workDays} ימים נטו
-                  </div>
-                  {d.glazing ? (
-                    <div className="text-xs text-gray-300">
-                      {d.glazing.rate} יח׳ ליום: {d.glazing.fullDays} ימים מלאים
-                      {d.glazing.rest > 0 ? ` + ${d.glazing.rest} יח׳ ביום האחרון` : ''}
-                    </div>
-                  ) : d.required !== null && (
-                    <div className="text-xs text-gray-300">לפי {d.basis}: {d.required} ימים נטו</div>
-                  )}
-                </>
-              )
-            })()}
-            <div className="text-xs">התקדמות: {tooltip.task.progress}%</div>
-            {predecessors.length > 0 && (
-              <div className="mt-1.5 border-t border-gray-600 pt-1.5">
-                <div className="text-blue-300 font-semibold text-xs mb-0.5">◀ מתחיל אחרי:</div>
-                {predecessors.map(p => <div key={p.id} className="text-blue-100 text-xs">• {p.name}</div>)}
-              </div>
-            )}
-            {successors.length > 0 && (
-              <div className="mt-1.5 border-t border-gray-600 pt-1.5">
-                <div className="text-green-300 font-semibold text-xs mb-0.5">▶ מניע את:</div>
-                {successors.map(s => <div key={s.id} className="text-green-100 text-xs">• {s.name}</div>)}
-              </div>
-            )}
-            {tooltip.task.notes && <div className="text-yellow-300 text-xs mt-1.5 border-t border-gray-600 pt-1.5">{tooltip.task.notes}</div>}
-          </div>
-        )
-      })()}
-
       <svg width={totalWidth} height={totalHeight} style={{ display: 'block', minWidth: totalWidth }}>
         <defs>
           <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
@@ -992,7 +952,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                 <text x={54} y={y + 20} textAnchor="end" fill={labelOverdue ? '#C00000' : '#999'} fontSize={fs(14)} fontFamily="Arial">{num}</text>
                 <text x={12} y={y + 20} fontSize={fs(14)} fill="#1F78C1" fontFamily="Arial" textAnchor="middle"
                   className="cursor-pointer"
-                  onClick={e => { e.stopPropagation(); setTooltip(prev => prev?.task.id === task.id ? null : { task, x: e.clientX, y: e.clientY }) }}>ⓘ</text>
+                  onClick={e => { e.stopPropagation(); if (procurementOnly) setProcurementFocusTask(task); else openEditTask(task) }}>ⓘ</text>
                 <text x={labelW - (task.sdPhase && labelW > 60 ? 56 : 8)} y={y + 20} textAnchor="end" fill={labelOverdue ? '#C00000' : '#222'} fontSize={fs(14)} fontFamily="Arial">{task.name}</text>
                 {task.sdPhase && labelW > 60 && (
                   <>
