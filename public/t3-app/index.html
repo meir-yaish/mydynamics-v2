@@ -47,6 +47,9 @@ input.n{width:90px}
 .tot td{font-weight:700;background:var(--bg)}
 .hide{display:none}
 h2{font-size:16px;margin:0 0 10px}
+.zr{border-top:1px solid var(--line);padding:10px 0}
+.zr input.zn{width:100%}
+.zr select{font-size:13px;max-width:100%}
 </style>
 </head>
 <body>
@@ -137,6 +140,8 @@ const W={0:0,1:.5,2:1};
 const pkProg=p=>STAGES.reduce((a,[k])=>a+W[p.st[k]],0)/STAGES.length;
 const stageProg=(arr,k)=>arr.length?arr.reduce((a,p)=>a+W[p.st[k]],0)/arr.length:0;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const zArea=pts=>{let x=0,y=0,z=0;for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length];x+=(a[1]-b[1])*(a[2]+b[2]);y+=(a[2]-b[2])*(a[0]+b[0]);z+=(a[0]-b[0])*(a[1]+b[1])}return Math.hypot(x,y,z)/2};
+const f1=n=>(Math.round(n*10)/10).toLocaleString('he-IL');
 
 // ---------- ניווט ----------
 const TABS=[['dash','סקירה'],['v3d','תלת מימד'],['track','מעקב ביצוע'],['boq','כמויות וכסף'],['plan','תוכנית זכוכית'],['sched','לוח זמנים'],['rev','ייבוא Revit']];
@@ -377,12 +382,15 @@ function v3d(){
     <select id="vm"><option value="all">התקדמות כוללת</option>${STAGES.map(([k,t])=>`<option value="${k}" ${mode===k?'selected':''}>${t}</option>`).join('')}</select>
     <select id="vv"><option value="real">מודל אמיתי מ-Revit</option><option value="sch">סכמטי + צבע לפי סטטוס</option></select>
     <span id="vcats" style="display:flex;gap:10px;flex-wrap:wrap"></span>
+    <span id="zt" style="display:flex;gap:10px;align-items:center"><button class="act" id="zBtn">✎ סימון אזור (קו אדום-צהוב)</button><label><input type="checkbox" id="zShow" checked> הצג אזורים</label></span>
     <label class="act">טען מודל GLB מ-Revit<input type="file" id="fGlb" accept=".glb,.gltf" class="hide"></label>
     <span class="leg">גרירה: סיבוב · גלגל: זום · קליק על פאנל: פרטים ועדכון סטטוס</span></div>
     <div style="display:flex;gap:14px;flex-wrap:wrap">
       <div id="cv" class="card" style="padding:0;height:calc(100vh - 240px);min-height:380px;flex:1 1 560px;min-width:300px;overflow:hidden"></div>
-      <div id="inf" class="card" style="flex:0 0 280px">לחץ על פאנל במודל.<p class="leg">צבעים: אפור = לא בוצע, כתום = בתהליך, ירוק = בוצע.</p>
-      <p class="leg">המודל הסכמטי מציג חזיתות לפי בניין, חזית וקומות. הממדים משוערים עד שנטען מודל אמיתי.</p></div></div>`;
+      <div style="flex:0 0 300px;display:flex;flex-direction:column;gap:14px">
+      <div id="inf" class="card">לחץ על פאנל במודל.<p class="leg">צבעים: אפור = לא בוצע, כתום = בתהליך, ירוק = בוצע.</p>
+      <p class="leg">המודל הסכמטי מציג חזיתות לפי בניין, חזית וקומות. הממדים משוערים עד שנטען מודל אמיתי.</p></div>
+      <div id="zl" class="card"></div></div></div>`;
   const el=cv,w=el.clientWidth,h=el.clientHeight;
   const scene=new THREE.Scene();
   scene.background=new THREE.Color(getComputedStyle(document.body).backgroundColor);
@@ -451,8 +459,9 @@ function v3d(){
     const r=rd.domElement.getBoundingClientRect();
     mouse.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
     ray.setFromCamera(mouse,cam);
+    if(drawMode&&real.visible){const hz=ray.intersectObjects(realMeshes.filter(m=>m.visible))[0];if(hz)zAdd(hz);return}
     if(real.visible){
-      const h=ray.intersectObjects(realMeshes)[0];
+      const h=ray.intersectObjects(realMeshes.filter(m=>m.visible))[0];
       if(h){const gd=h.object.userData,tri=h.faceIndex;let lo=0,hi=gd.list.length-1;while(lo<hi){const mid=(lo+hi+1)>>1;if(gd.triStart[mid]<=tri)lo=mid;else hi=mid-1}
         const ii=gd.list[lo];inf.innerHTML=`<h2>${CAT_HE[gd.cat]||gd.cat}</h2><div>${gd.cat}</div><div class="leg">Revit dbId: ${REAL.im[ii*4+3]}</div>`}
       return;
@@ -468,9 +477,104 @@ function v3d(){
         <button class="st s${p.st[k]}" data-k="${k}">${['','◐','✓'][p.st[k]]}</button></div>`).join('')}`;
     inf.querySelectorAll('.st').forEach(b=>b.onclick=()=>{p.st[b.dataset.k]=(p.st[b.dataset.k]+1)%3;save();recolor();info(p)});
   }
+  // ----- סימון אזורי עבודה / חבילות עבודה: קו אדום-צהוב שנסגר לשטח -----
+  const Z=S.zones=S.zones||[];
+  const zg=new THREE.Group(),dg=new THREE.Group();scene.add(zg);scene.add(dg);
+  let drawMode=false,cur=[];
+  const RED=new THREE.Color(0xe53935),YEL=new THREE.Color(0xffd60a),YAX=new THREE.Vector3(0,1,0),cylT=new THREE.CylinderGeometry(1,1,1,6,1,false);
+  const toV=pts=>pts.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
+  const clearG=g=>{while(g.children.length){const o=g.children[0];g.remove(o);o.geometry.dispose();o.material.dispose()}};
+  function normalOf(P){const n=new THREE.Vector3();for(let i=0;i<P.length;i++){const a=P[i],b=P[(i+1)%P.length];n.x+=(a.y-b.y)*(a.z+b.z);n.y+=(a.z-b.z)*(a.x+b.x);n.z+=(a.x-b.x)*(a.y+b.y)}return n}
+  function tape(P,closed){
+    const pos=[],col=[],idx=[],n=P.length,m=closed?n:n-1,q=new THREE.Quaternion(),mt=new THREE.Matrix4(),sc=new THREE.Vector3();let k=0,base=0;
+    for(let i=0;i<m;i++){
+      const a=P[i],b=P[(i+1)%n],len=a.distanceTo(b);if(len<1e-3)continue;
+      const cnt=Math.max(1,Math.round(len/1.2));q.setFromUnitVectors(YAX,b.clone().sub(a).normalize());
+      for(let j=0;j<cnt;j++){
+        const p0=a.clone().lerp(b,j/cnt),p1=a.clone().lerp(b,(j+1)/cnt);
+        mt.compose(p0.clone().add(p1).multiplyScalar(.5),q,sc.set(.12,p0.distanceTo(p1),.12));
+        const g=cylT.clone().applyMatrix4(mt),pa=g.attributes.position,ia=g.index,c=(k++%2)?YEL:RED;
+        for(let v=0;v<pa.count;v++){pos.push(pa.getX(v),pa.getY(v),pa.getZ(v));col.push(c.r,c.g,c.b)}
+        for(let v=0;v<ia.count;v++)idx.push(base+ia.getX(v));
+        base+=pa.count;g.dispose();
+      }
+    }
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.setIndex(idx);
+    return new THREE.Mesh(g,new THREE.MeshBasicMaterial({vertexColors:true}));
+  }
+  function fill(P,type){
+    if(P.length<3)return null;const nr=normalOf(P);if(nr.lengthSq()<1e-9)return null;nr.normalize();
+    const u=new THREE.Vector3(Math.abs(nr.y)<.9?0:1,Math.abs(nr.y)<.9?1:0,0).cross(nr).normalize(),v=nr.clone().cross(u);
+    const tri=THREE.ShapeUtils.triangulateShape(P.map(p=>new THREE.Vector2(p.dot(u),p.dot(v))),[]);
+    const pos=[];P.forEach(p=>pos.push(p.x,p.y,p.z));
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(tri.flat());
+    return new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:type==='pkg'?0xffd60a:0xe53935,transparent:true,opacity:.18,side:THREE.DoubleSide,depthWrite:false}));
+  }
+  function zBuild(){clearG(zg);Z.forEach(z=>{const P=toV(z.pts);zg.add(tape(P,true));const f=fill(P,z.type);if(f)zg.add(f)})}
+  function zCur(){
+    clearG(dg);if(!cur.length)return;if(cur.length>1)dg.add(tape(cur,false));
+    cur.forEach((p,i)=>{const s=new THREE.Mesh(new THREE.SphereGeometry(i?.22:.4,12,8),new THREE.MeshBasicMaterial({color:i?0xffffff:0x1e9e5a}));s.position.copy(p);dg.add(s)});
+  }
+  function zStatus(msg){
+    const e=document.getElementById('zst'),b=document.getElementById('zbt');if(!e)return;
+    e.textContent=msg||(drawMode?`מצב סימון (${cur.length} נקודות): לחץ על המודל להוספת נקודה. סגירה: לחיצה על הנקודה הירוקה, Enter או "סגור אזור". Backspace — מחיקת נקודה אחרונה. Esc — ביטול.`:'לחץ "סימון אזור" כדי לסגור שטח על החזיתות.');
+    b.style.display=drawMode?'flex':'none';
+  }
+  function zAdd(h){
+    const nr=h.face.normal.clone();if(nr.dot(ray.ray.direction)>0)nr.negate();
+    const p=h.point.clone().add(nr.multiplyScalar(.08));
+    if(cur.length>=3&&p.distanceTo(cur[0])<1){zClose();return}
+    cur.push(p);zCur();zStatus();
+  }
+  function zClose(){
+    if(cur.length<3){zStatus('נדרשות לפחות 3 נקודות לסגירת אזור.');return}
+    Z.push({id:'z'+Date.now().toString(36),name:'אזור '+(Z.length+1),type:'zone',task:'',pts:cur.map(p=>[+p.x.toFixed(3),+p.y.toFixed(3),+p.z.toFixed(3)])});
+    cur=[];zCur();save();zBuild();zList();
+  }
+  function zMode(on){
+    drawMode=on;cur=[];zCur();zBtn.textContent=on?'■ סיום סימון':'✎ סימון אזור (קו אדום-צהוב)';
+    zBtn.style.background=on?'#e53935':'';zBtn.style.color=on?'#fff':'';rd.domElement.style.cursor=on?'crosshair':'';zStatus();
+  }
+  function zFocus(z){
+    const P=toV(z.pts),c=new THREE.Vector3();P.forEach(p=>c.add(p));c.divideScalar(P.length);
+    const nr=normalOf(P).normalize();if(nr.dot(cam.position.clone().sub(c))<0)nr.negate();
+    const d=Math.max(...new THREE.Box3().setFromPoints(P).getSize(new THREE.Vector3()).toArray())*1.6+8;
+    cam.position.copy(c.clone().add(nr.multiplyScalar(d)));ctl.target.copy(c);ctl.update();
+  }
+  function zList(){
+    const tasks=S.pk.map(p=>`<option value="${esc(p.task)}">${esc(p.task)} · ${p.bld} ${esc(p.facade)} ק׳${esc(p.floors)}</option>`).join('');
+    const rows=Z.map(z=>{const pk=S.pk.find(p=>p.task===z.task);
+      return `<div class="zr" data-z="${z.id}">
+        <div style="display:flex;gap:6px;align-items:center"><input class="zn" value="${esc(z.name)}" style="flex:1;min-width:0"><button class="act zf" title="מרכז מצלמה על האזור">⌖</button><button class="act zd" title="מחק אזור">🗑</button></div>
+        <div style="display:flex;gap:6px;margin-top:6px"><select class="zy"><option value="zone" ${z.type==='zone'?'selected':''}>אזור עבודה</option><option value="pkg" ${z.type==='pkg'?'selected':''}>חבילת עבודה</option></select>
+        <select class="zk" style="flex:1;min-width:0"><option value="">— ללא קישור למשימה —</option>${tasks.replace(`value="${esc(z.task)}"`,`value="${esc(z.task)}" selected`)}</select></div>
+        <div class="leg">${f1(zArea(z.pts))} מ"ר${pk?` · התקדמות ${pct(pkProg(pk))}`:''}</div></div>`}).join('');
+    zl.innerHTML=`<h2>אזורי עבודה וחבילות (${Z.length})</h2><div id="zst" class="leg"></div>
+      <div id="zbt" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="act" id="zOk">✓ סגור אזור</button><button class="act" id="zUndo">↶ נקודה אחרונה</button><button class="act" id="zCan">ביטול</button></div>
+      ${rows||'<div class="leg">עדיין לא סומנו אזורים.</div>'}${Z.length?`<div class="leg">סה"כ ${f1(Z.reduce((a,z)=>a+zArea(z.pts),0))} מ"ר</div>`:''}`;
+    zl.querySelectorAll('.zr').forEach(r=>{const z=Z.find(x=>x.id===r.dataset.z);
+      r.querySelector('.zn').onchange=e=>{z.name=e.target.value.trim()||z.name;save()};
+      r.querySelector('.zy').onchange=e=>{z.type=e.target.value;save();zBuild()};
+      r.querySelector('.zk').onchange=e=>{z.task=e.target.value;save();zList()};
+      r.querySelector('.zf').onclick=()=>zFocus(z);
+      r.querySelector('.zd').onclick=()=>{if(confirm('למחוק את "'+z.name+'"?')){Z.splice(Z.indexOf(z),1);save();zBuild();zList()}};
+    });
+    zOk.onclick=zClose;zUndo.onclick=()=>{cur.pop();zCur();zStatus()};zCan.onclick=()=>{cur=[];zCur();zStatus()};
+    zStatus();
+  }
+  function zKey(e){
+    if(!drawMode||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName||''))return;
+    if(e.key==='Enter')zClose();
+    else if(e.key==='Escape'){if(cur.length){cur=[];zCur();zStatus()}else zMode(false)}
+    else if(e.key==='Backspace'){e.preventDefault();cur.pop();zCur();zStatus()}
+  }
+  function zSync(){zg.visible=real.visible&&zShow.checked;dg.visible=real.visible;zl.style.display=real.visible?'':'none';if(!real.visible&&drawMode)zMode(false)}
+  zBtn.onclick=()=>zMode(!drawMode);zShow.onchange=zSync;document.addEventListener('keydown',zKey);
+  zBuild();zList();
+
   vm.onchange=()=>{S.v3mode=vm.value;save();v3d()};
   vv.value=hasReal?(S.v3view||'real'):'sch';vv.disabled=!hasReal;
-  const applyView=()=>{S.v3view=vv.value;const r=vv.value==='real';sch.visible=!r;grid.visible=!r;real.visible=r;vcats.style.display=r?'flex':'none';save()};
+  const applyView=()=>{S.v3view=vv.value;const r=vv.value==='real';sch.visible=!r;grid.visible=!r;real.visible=r;vcats.style.display=r?'flex':'none';zt.style.display=r?'flex':'none';zSync();save()};
   vv.onchange=applyView;applyView();
 
   // טעינת מודל אמיתי
@@ -487,7 +591,7 @@ function v3d(){
   (function loop(){if(!alive)return;requestAnimationFrame(loop);ctl.update();rd.render(scene,cam)})();
   const onResize=()=>{const W2=el.clientWidth;rd.setSize(W2,h);cam.aspect=W2/h;cam.updateProjectionMatrix()};
   addEventListener('resize',onResize);
-  stop3d=()=>{alive=false;removeEventListener('resize',onResize);rd.dispose();rd.domElement.remove()};
+  stop3d=()=>{alive=false;removeEventListener('resize',onResize);document.removeEventListener('keydown',zKey);rd.dispose();rd.domElement.remove()};
 }
 
 // ---------- ייצוא / גיבוי ----------
@@ -497,6 +601,7 @@ bExp.onclick=()=>{
     ...Object.fromEntries(STAGES.map(([k,t])=>[t,['לא בוצע','בתהליך','בוצע'][p.st[k]]])),אחוז:Math.round(pkProg(p)*100)/100,התחלה:p.start,סיום:p.end}))),'מעקב');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(S.boq.filter(r=>!r.hdr).map(r=>({סעיף:r.no,טיפוס:r.type,תיאור:r.desc,יחידה:r.unit,כמות:r.qty,מחיר:r.price,סהכ:r.total,מבוצע:r.done,שווי_שבוצע:r.qty?Math.round(r.price*Math.min(r.done,r.qty)):0}))),'כמויות');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(GLASSPLAN.map((r,i)=>({חזית:r[1],מגדל:r[2]==='-'?'מרפסת':r[2],קומה:r[3],קבוצה:r[6],סוג:r[5],סטטוס:PL_ST[pst(i)]}))),'תוכנית זכוכית');
+  if((S.zones||[]).length)XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(S.zones.map(z=>({שם:z.name,סוג:z.type==='pkg'?'חבילת עבודה':'אזור עבודה',משימה:z.task,'שטח מ"ר':Math.round(zArea(z.pts)*10)/10,נקודות:z.pts.length}))),'אזורי עבודה');
   XLSX.writeFile(wb,'T3-Tracker-'+new Date().toISOString().slice(0,10)+'.xlsx');
 };
 bJson.onclick=()=>{
