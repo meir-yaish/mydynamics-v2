@@ -549,7 +549,7 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                         <div className="font-semibold text-gray-900">משך: {d.calendarDays} ימים ברוטו · {d.workDays} ימים נטו</div>
                         {d.glazing ? (
                           <div className="text-gray-600 mt-0.5">
-                            {d.glazing.rate} יח׳ ליום: {d.glazing.fullDays === 0 ? `${d.glazing.rest} יח׳ ביום אחד` : `${d.glazing.fullDays === 1 ? 'יום מלא' : `${d.glazing.fullDays} ימים מלאים`}${d.glazing.rest > 0 ? ` + ${d.glazing.rest} יח׳ ביום האחרון` : ''}`}
+                            {editTask.quantity} יח׳ סה״כ · {d.glazing.rate} יח׳ ליום: {d.glazing.fullDays === 0 ? `${d.glazing.rest} יח׳ ביום אחד` : `${d.glazing.fullDays === 1 ? 'יום מלא' : `${d.glazing.fullDays} ימים מלאים`}${d.glazing.rest > 0 ? ` + ${d.glazing.rest} יח׳ ביום האחרון` : ''}`}
                           </div>
                         ) : d.required !== null && (
                           <div className="text-gray-600 mt-0.5">לפי {d.basis}: {d.required} ימים נטו</div>
