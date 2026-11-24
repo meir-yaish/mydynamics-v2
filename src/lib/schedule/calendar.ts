@@ -151,23 +151,16 @@ function toKey(d: Date): string {
 
 // ──────────────────────────────────────────────
 // workFactor: 0 = no work, 0.5 = half day, 1 = full day
-// Rule: Saturday always 0. Friday always at least 0.5.
-// If a full-off holiday falls on Friday → still 0.5 (not less).
+// Rule: Friday and Saturday are always 0 (no work on Fridays).
 // ──────────────────────────────────────────────
 export function workFactor(d: Date, cal: CalendarType, ramadan = false): 0 | 0.5 | 1 {
   const dow = d.getUTCDay() // 0=Sun,1=Mon,2=Tue,3=Wed,4=Thu,5=Fri,6=Sat
 
   if (cal === 'israel') {
-    if (dow === 6) return 0  // Saturday always off
+    if (dow === 5 || dow === 6) return 0
     const key = toKey(d)
-    // Full-off holidays (0) — but Friday rule: min 0.5
-    if (JEWISH_FULL_OFF.has(key) || MUSLIM_FULL_OFF.has(key)) {
-      return dow === 5 ? 0.5 : 0
-    }
-    // Half-day holidays
+    if (JEWISH_FULL_OFF.has(key) || MUSLIM_FULL_OFF.has(key)) return 0
     if (JEWISH_HALF.has(key) || (ramadan && RAMADAN_DAYS.has(key))) return 0.5
-    // Friday: always 0.5
-    if (dow === 5) return 0.5
     return 1
   } else {
     if (PORTUGAL_OFF_DOW.has(dow)) return 0
@@ -221,7 +214,7 @@ export function addWorkingDays(start: Date, days: number, cal: CalendarType, ram
   return next
 }
 
-// סכום ימי העבודה (שישי/חג חצי = 0.5) בטווח, כולל שני הקצוות
+// סכום ימי העבודה (ערב חג/חצי יום = 0.5) בטווח, כולל שני הקצוות
 export function workDaysBetween(start: Date, end: Date, cal: CalendarType, ramadan = false): number {
   let sum = 0
   const d = new Date(start)

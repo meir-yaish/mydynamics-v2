@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react'
 import { differenceInDays, addMonths } from 'date-fns'
 import { JEWISH_HOLIDAYS, MUSLIM_HOLIDAYS, RAMADAN_DAYS, workDaysBetween, calendarForResponsible } from '@/lib/schedule/calendar'
-import { localDay, requiredWorkDays } from '@/lib/schedule/installationEngine'
+import { localDay, requiredWorkDays, glazingBreakdown } from '@/lib/schedule/installationEngine'
 import ProcurementPanel, { ProcurementPanelHandle } from './ProcurementPanel'
 import FacadeView from './FacadeView'
 import TaskImageEditor from './TaskImageEditor'
@@ -48,7 +48,8 @@ function taskDurations(task: Task, ramadan: boolean) {
   const calendarDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1
   const work = workDaysBetween(start, end, calendarForResponsible(task.responsible), ramadan)
   const req = requiredWorkDays(task.name, task.notes ?? null, task.quantity ?? null, task.floors ?? null)
-  return { calendarDays, workDays: work, required: req === null ? null : Math.round(req.days * 10) / 10, basis: req?.basis ?? '' }
+  const glazing = glazingBreakdown(task.name, task.quantity ?? null, task.floors ?? null)
+  return { calendarDays, workDays: work, required: req === null ? null : Math.round(req.days * 10) / 10, basis: req?.basis ?? '', glazing }
 }
 
 const HEB_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
@@ -768,7 +769,12 @@ export default function GanttChart({ tasks, onTaskUpdate, onTaskDelete, taskSeri
                   <div className="text-xs font-bold text-amber-300 mt-0.5">
                     משך: {d.calendarDays} ימים ברוטו · {d.workDays} ימים נטו
                   </div>
-                  {d.required !== null && (
+                  {d.glazing ? (
+                    <div className="text-xs text-gray-300">
+                      {d.glazing.rate} יח׳ ליום: {d.glazing.fullDays} ימים מלאים
+                      {d.glazing.rest > 0 ? ` + ${d.glazing.rest} יח׳ ביום האחרון` : ''}
+                    </div>
+                  ) : d.required !== null && (
                     <div className="text-xs text-gray-300">לפי {d.basis}: {d.required} ימים נטו</div>
                   )}
                 </>

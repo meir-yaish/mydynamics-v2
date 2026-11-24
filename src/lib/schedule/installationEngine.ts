@@ -27,6 +27,9 @@ export interface EngineOutput {
 // ימי עבודה למקטע של 510 מ"ר: A = סימונים 1 + לוגיסטיקה 1 + עוגנים 3 + שלד 4; G = זיגוג; S = סיליקון. B לא משתנה.
 const DAYS_PER_510: Partial<Record<InstallKind, number>> = { A: 9, G: 17, S: 5 }
 
+// פעילות בלי נוסחת משך (בולנוז): שבוע עבודה — 5 ימי עבודה (ראשון–חמישי)
+const UNMODELED_WORK_DAYS = 5
+
 // זיגוג (G): קצב התקנה של יחידות זכוכית ליום עבודה — עדיף על חישוב לפי מ"ר כשקיימת כמות
 export const GLAZING_UNITS_PER_DAY = 25
 // קומות נמוכות (טווח שמתחיל עד קומה זו): כרגע זהה לקצב הרגיל; להעלאת הקצב — לשנות כאן
@@ -88,6 +91,14 @@ function advance(pos: Pos, amount: number, ramadan: boolean): { endDate: Date; e
 
 function isLater(a: Pos, b: Pos): boolean {
   return a.date.getTime() > b.date.getTime() || (a.date.getTime() === b.date.getTime() && a.used > b.used)
+}
+
+// זיגוג: כל יום עבודה rate יחידות, וביום האחרון כל השאר
+export function glazingBreakdown(name: string, quantity: number | null, floors: string | null): { rate: number; fullDays: number; rest: number } | null {
+  if (parseKind(name)?.kind !== 'G' || quantity === null || quantity <= 0) return null
+  const rate = glazingRate(floors)
+  const fullDays = Math.floor(quantity / rate)
+  return { rate, fullDays, rest: quantity - fullDays * rate }
 }
 
 // ימי עבודה נדרשים: G לפי כמות יחידות, A לפי טבלת 510 מ"ר (השטח בהערות הפעילות)
@@ -218,9 +229,7 @@ export function computeInstallationSchedule(
       end = lastDayOfWork(start, days, 'israel', ramadan)
     } else {
       if (per510) withoutArea.push(t.name)
-      const calDays = Math.round((localDay(t.endDate).getTime() - localDay(t.startDate).getTime()) / 86400000)
-      end = new Date(start)
-      end.setUTCDate(end.getUTCDate() + calDays)
+      end = lastDayOfWork(start, UNMODELED_WORK_DAYS, 'israel', ramadan)
     }
     results.set(id, { startDate: start, endDate: end })
   }
